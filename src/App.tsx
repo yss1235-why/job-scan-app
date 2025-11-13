@@ -15,9 +15,17 @@ const App = () => (
       <Toaster />
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<Index />} />
+          {/* Admin routes MUST come before Index */}
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/job/:jobId" element={<AdminJobEdit />} />
+          
+          {/* User routes */}
+          <Route path="/" element={<Index />} />
+          <Route path="/saved" element={<Index />} />
+          <Route path="/notifications" element={<Index />} />
+          <Route path="/more" element={<Index />} />
+          
+          {/* 404 */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
