@@ -10,13 +10,14 @@ import Saved from './Saved';
 import Notifications from './Notifications';
 import More from './More';
 import { Job } from '@/types/job';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { saveUser, getUser, refreshUserFromFirestore, createBooking } from '@/lib/storage';
 import { getJobs } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
+import { AlertTriangle } from 'lucide-react';
 
 const Index = () => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -24,6 +25,7 @@ const Index = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false); // NEW WARNING MODAL
   const [loading, setLoading] = useState(true);
   const [authUser, setAuthUser] = useState<any>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -167,6 +169,38 @@ const Index = () => {
     }
   };
 
+  // NEW FUNCTION: Handle "Register Yourself" with warning
+  const handleRegisterYourself = () => {
+    if (!selectedJob) return;
+
+    // Check if registration link exists
+    if (!selectedJob.registrationLink || selectedJob.registrationLink.trim() === '') {
+      toast({
+        title: 'Link Not Available',
+        description: 'Registration link has not been added for this job yet.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Show warning modal
+    setShowWarningModal(true);
+  };
+
+  // NEW FUNCTION: Confirm redirect to registration link
+  const handleConfirmRedirect = () => {
+    if (selectedJob && selectedJob.registrationLink) {
+      window.open(selectedJob.registrationLink, '_blank');
+      setShowWarningModal(false);
+      setShowRegisterModal(false);
+      
+      toast({
+        title: 'Opening Registration Page',
+        description: 'The official registration page has been opened in a new tab',
+      });
+    }
+  };
+
   const handleRegisterForYou = async () => {
     if (!authUser) {
       toast({
@@ -290,10 +324,7 @@ const Index = () => {
               <Button 
                 className="w-full" 
                 variant="outline"
-                onClick={() => {
-                  window.open('#', '_blank'); // Replace with actual registration URL
-                  setShowRegisterModal(false);
-                }}
+                onClick={handleRegisterYourself}
               >
                 Register Yourself
               </Button>
@@ -326,6 +357,43 @@ const Index = () => {
             <p className="text-xs text-center text-muted-foreground">
               We will contact you via email/phone within 24 hours with registration details and payment instructions.
             </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* NEW WARNING MODAL */}
+      <Dialog open={showWarningModal} onOpenChange={setShowWarningModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-yellow-600" />
+              </div>
+              <DialogTitle>Confirm Redirect</DialogTitle>
+            </div>
+            <DialogDescription className="text-base">
+              You will be redirected to the official registration page for <strong>{selectedJob?.title}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 pt-4">
+            <p className="text-sm text-muted-foreground">
+              Make sure you have all required documents ready before proceeding.
+            </p>
+            <div className="flex gap-3">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setShowWarningModal(false)}
+              >
+                Cancel
+              </Button>
+              <Button 
+                className="flex-1"
+                onClick={handleConfirmRedirect}
+              >
+                Continue
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
