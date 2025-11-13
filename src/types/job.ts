@@ -8,6 +8,7 @@ export interface Job {
   applyBy: string;
   examDate?: string;
   description: string;
+  registrationLink?: string; // NEW FIELD
   createdAt: Date;
   lastUpdated: Date;
 }
