@@ -29,6 +29,7 @@ const AdminJobEdit = () => {
     applyBy: '',
     examDate: '',
     description: '',
+    registrationLink: '', // NEW FIELD
   });
 
   useEffect(() => {
@@ -56,6 +57,7 @@ const AdminJobEdit = () => {
           ...job,
           applyBy: job.applyBy?.split('T')[0] || '',
           examDate: job.examDate?.split('T')[0] || '',
+          registrationLink: job.registrationLink || '', // Load existing link
         });
       }
     } catch (error) {
@@ -106,6 +108,7 @@ const AdminJobEdit = () => {
         applyBy: formData.applyBy!,
         examDate: formData.examDate || '',
         description: formData.description || '',
+        registrationLink: formData.registrationLink || '', // SAVE NEW FIELD
         createdAt: isNew ? new Date() : (formData.createdAt || new Date()),
         lastUpdated: new Date(),
       };
@@ -208,6 +211,21 @@ const AdminJobEdit = () => {
                 onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) })}
                 placeholder="0"
               />
+            </div>
+
+            {/* NEW REGISTRATION LINK FIELD */}
+            <div>
+              <Label htmlFor="registrationLink">Official Registration Link</Label>
+              <Input
+                id="registrationLink"
+                type="url"
+                value={formData.registrationLink}
+                onChange={(e) => setFormData({ ...formData, registrationLink: e.target.value })}
+                placeholder="https://example.com/register"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Paste the official website link where users can register themselves
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
