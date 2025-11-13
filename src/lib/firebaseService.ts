@@ -16,7 +16,8 @@ import {
 import { db, ADMIN_EMAILS } from './firebase';
 import { Job, User, JobNote } from '@/types/job';
 
-// User Management
+// ==================== USER MANAGEMENT ====================
+
 export const saveUserToFirestore = async (user: User) => {
   try {
     await setDoc(doc(db, 'users', user.uid), {
@@ -55,12 +56,22 @@ export const updateUserProfile = async (uid: string, data: Partial<User>) => {
   }
 };
 
-// Check if user is admin
 export const isUserAdmin = (email: string): boolean => {
   return ADMIN_EMAILS.includes(email.toLowerCase());
 };
 
-// Jobs Management
+export const promoteUserToAdmin = async (userId: string) => {
+  try {
+    const userRef = doc(db, 'users', userId);
+    await setDoc(userRef, { role: 'admin' }, { merge: true });
+  } catch (error) {
+    console.error('Error promoting user:', error);
+    throw error;
+  }
+};
+
+// ==================== JOBS MANAGEMENT ====================
+
 export const getAllJobs = async (): Promise<Job[]> => {
   try {
     const jobsSnapshot = await getDocs(collection(db, 'jobs'));
@@ -138,7 +149,8 @@ export const deleteJobFromFirestore = async (jobId: string) => {
   }
 };
 
-// Saved Jobs Management
+// ==================== SAVED JOBS MANAGEMENT ====================
+
 export const getSavedJobs = async (uid: string): Promise<string[]> => {
   try {
     const savedJobsSnapshot = await getDocs(collection(db, 'users', uid, 'savedJobs'));
@@ -179,7 +191,8 @@ export const isJobSavedByUser = async (uid: string, jobId: string): Promise<bool
   }
 };
 
-// Job Notes Management
+// ==================== JOB NOTES MANAGEMENT ====================
+
 export const addJobNote = async (jobId: string, message: string) => {
   try {
     const noteRef = doc(collection(db, 'jobs', jobId, 'notes'));
@@ -232,7 +245,128 @@ export const getNotesForSavedJobs = async (uid: string): Promise<JobNote[]> => {
   }
 };
 
-// Real-time listeners
+// ==================== BOOKING/REGISTRATION MANAGEMENT ====================
+
+export interface Booking {
+  id: string;
+  jobId: string;
+  jobTitle: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  fee: number;
+  status: 'pending' | 'processing' | 'completed' | 'cancelled';
+  createdAt: Date;
+}
+
+export const createBooking = async (booking: Omit<Booking, 'id' | 'createdAt'>) => {
+  try {
+    const bookingRef = doc(collection(db, 'bookings'));
+    const bookingData = {
+      ...booking,
+      id: bookingRef.id,
+      createdAt: serverTimestamp(),
+    };
+    
+    await setDoc(bookingRef, bookingData);
+    return bookingRef.id;
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    throw error;
+  }
+};
+
+export const getUserBookings = async (userId: string): Promise<Booking[]> => {
+  try {
+    const q = query(
+      collection(db, 'bookings'),
+      where('userId', '==', userId),
+      orderBy('createdAt', 'desc')
+    );
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+    })) as Booking[];
+  } catch (error) {
+    console.error('Error getting bookings:', error);
+    return [];
+  }
+};
+
+export const getAllBookings = async (): Promise<Booking[]> => {
+  try {
+    const q = query(collection(db, 'bookings'), orderBy('createdAt', 'desc'));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => ({
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toDate() || new Date(),
+    })) as Booking[];
+  } catch (error) {
+    console.error('Error getting all bookings:', error);
+    return [];
+  }
+};
+
+export const updateBookingStatus = async (
+  bookingId: string, 
+  status: Booking['status']
+) => {
+  try {
+    await updateDoc(doc(db, 'bookings', bookingId), {
+      status,
+      updatedAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error updating booking status:', error);
+    throw error;
+  }
+};
+
+// ==================== NOTIFICATION READ STATUS ====================
+
+export const markNotificationAsRead = async (userId: string, noteId: string) => {
+  try {
+    const readRef = doc(db, 'users', userId, 'readNotifications', noteId);
+    await setDoc(readRef, {
+      readAt: serverTimestamp(),
+    });
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+export const getReadNotifications = async (userId: string): Promise<string[]> => {
+  try {
+    const snapshot = await getDocs(collection(db, 'users', userId, 'readNotifications'));
+    return snapshot.docs.map(doc => doc.id);
+  } catch (error) {
+    console.error('Error getting read notifications:', error);
+    return [];
+  }
+};
+
+export const getUnreadNotificationCount = async (userId: string): Promise<number> => {
+  try {
+    const savedJobs = await getSavedJobs(userId);
+    const allNotes: string[] = [];
+    
+    for (const jobId of savedJobs) {
+      const notes = await getJobNotes(jobId);
+      allNotes.push(...notes.map(n => n.id));
+    }
+    
+    const readNotes = await getReadNotifications(userId);
+    return allNotes.filter(id => !readNotes.includes(id)).length;
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    return 0;
+  }
+};
+
+// ==================== REAL-TIME LISTENERS ====================
+
 export const subscribeToJobs = (callback: (jobs: Job[]) => void) => {
   const q = query(
     collection(db, 'jobs'),
