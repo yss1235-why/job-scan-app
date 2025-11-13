@@ -1,9 +1,20 @@
+import { useState, useEffect } from 'react';
 import { Settings, User } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getUser } from '@/lib/storage';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 
 const TopBar = () => {
-  const user = getUser();
+  const [user, setUser] = useState(getUser());
+  
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, () => {
+      setUser(getUser());
+    });
+    
+    return () => unsubscribe();
+  }, []);
   
   return (
     <header className="sticky top-0 bg-card border-b border-border z-40 px-4 py-3">
@@ -17,7 +28,7 @@ const TopBar = () => {
         
         <div className="flex items-center gap-3">
           {user && (
-            <Link to="/profile" className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
+            <Link to="/more" className="w-8 h-8 bg-secondary rounded-full flex items-center justify-center">
               {user.name ? (
                 <span className="text-xs font-semibold text-secondary-foreground">
                   {user.name.charAt(0).toUpperCase()}
