@@ -126,7 +126,7 @@ const More = ({ onLoginClick }: MoreProps) => {
           JobNotify v1.0.0
         </p>
         <p className="text-xs text-muted-foreground mt-1">
-          Made with ❤️ for job seekers
+          Made with ❤️ for job seekers by Innovative Archive x Dynamic_Edu
         </p>
       </div>
     </div>
