@@ -1,122 +1,136 @@
 import { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import { Settings, LogOut, User as UserIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getNotesForSavedJobs, getSavedJobIds, getJobs } from '@/lib/storage';
-import { formatDistanceToNow } from 'date-fns';
-import { JobNote } from '@/types/job';
+import { getUser, clearUser } from '@/lib/storage';
+import { useNavigate } from 'react-router-dom';
+import { signOut } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useToast } from '@/hooks/use-toast';
 
-interface NotificationsProps {
-  onJobDetailsClick: (jobId: string) => void;
+interface MoreProps {
+  onLoginClick: () => void;
 }
 
-const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
-  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
-  const [notes, setNotes] = useState<JobNote[]>([]);
-  const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+const More = ({ onLoginClick }: MoreProps) => {
+  const [user, setUser] = useState(getUser());
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
   
   useEffect(() => {
-    loadData();
+    setUser(getUser());
   }, []);
   
-  const loadData = async () => {
+  const handleLogout = async () => {
     try {
       setLoading(true);
-      const [savedIds, fetchedNotes, fetchedJobs] = await Promise.all([
-        getSavedJobIds(),
-        getNotesForSavedJobs(),
-        getJobs()
-      ]);
+      await signOut(auth);
+      clearUser();
       
-      setSavedJobIds(savedIds);
-      setNotes(fetchedNotes);
-      setJobs(fetchedJobs);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
+      toast({
+        title: 'Signed out',
+        description: 'You have been signed out successfully',
+      });
+      
+      // Reload to clear state
+      window.location.reload();
+    } catch (error: any) {
+      console.error('Error signing out:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to sign out',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
   };
   
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading notifications...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  if (savedJobIds.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
-        <div className="text-center max-w-sm">
-          <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
-            <Bell className="w-8 h-8 text-muted-foreground" />
-          </div>
-          <h2 className="text-lg font-semibold mb-2">No notifications yet</h2>
-          <p className="text-sm text-muted-foreground">
-            Save a job to receive updates and notifications
-          </p>
-        </div>
-      </div>
-    );
-  }
-  
   return (
     <div className="pb-20 p-4 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold mb-4">Notifications</h2>
+      <h2 className="text-xl font-bold mb-6">More</h2>
       
-      {notes.length === 0 ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No updates yet</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            You'll receive notifications when saved jobs are updated
-          </p>
+      {user ? (
+        <div className="space-y-4">
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+                <span className="text-primary-foreground font-bold text-lg">
+                  {user.name.charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground">{user.name}</p>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+                {user.role === 'admin' && (
+                  <span className="inline-block mt-1 text-xs bg-primary text-primary-foreground px-2 py-0.5 rounded-full">
+                    Admin
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div>
+                <p className="text-muted-foreground">Phone</p>
+                <p className="font-medium">{user.phone}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">District</p>
+                <p className="font-medium">{user.district}</p>
+              </div>
+              <div className="col-span-2">
+                <p className="text-muted-foreground">State</p>
+                <p className="font-medium">{user.state}</p>
+              </div>
+            </div>
+          </div>
+          
+          {user.role === 'admin' && (
+            <Button
+              variant="outline"
+              className="w-full justify-start"
+              onClick={() => navigate('/admin')}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Admin Panel
+            </Button>
+          )}
+          
+          <Button
+            variant="outline"
+            className="w-full justify-start text-destructive hover:text-destructive"
+            onClick={handleLogout}
+            disabled={loading}
+          >
+            <LogOut className="w-4 h-4 mr-2" />
+            {loading ? 'Signing out...' : 'Sign Out'}
+          </Button>
         </div>
       ) : (
-        <div className="space-y-3">
-          {notes.map(note => {
-            const job = jobs.find(j => j.id === note.jobId);
-            return (
-              <div
-                key={note.id}
-                className="bg-card border border-border rounded-xl p-3 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm text-foreground mb-1">
-                      {note.message}
-                    </p>
-                    {job && (
-                      <p className="text-xs text-muted-foreground">{job.title}</p>
-                    )}
-                  </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}
-                  </span>
-                  {job && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onJobDetailsClick(note.jobId)}
-                      className="text-xs h-7"
-                    >
-                      View
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
+        <div className="text-center py-12">
+          <div className="w-16 h-16 bg-surface rounded-full flex items-center justify-center mx-auto mb-4">
+            <UserIcon className="w-8 h-8 text-muted-foreground" />
+          </div>
+          <h3 className="font-semibold mb-2">Sign in to continue</h3>
+          <p className="text-sm text-muted-foreground mb-6">
+            Access saved jobs, notifications, and more
+          </p>
+          <Button onClick={onLoginClick}>
+            Sign in with Google
+          </Button>
         </div>
       )}
+      
+      <div className="mt-12 text-center">
+        <p className="text-xs text-muted-foreground">
+          JobNotify v1.0.0
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Made with ❤️ for job seekers
+        </p>
+      </div>
     </div>
   );
 };
 
-export default Notifications;
+export default More;
