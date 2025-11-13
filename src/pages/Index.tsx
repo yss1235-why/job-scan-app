@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { saveUser, getUser, refreshUserFromFirestore } from '@/lib/storage';
+import { saveUser, getUser, refreshUserFromFirestore, createBooking } from '@/lib/storage';
 import { getJobs } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 
@@ -26,6 +26,7 @@ const Index = () => {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authUser, setAuthUser] = useState<any>(null);
+  const [bookingLoading, setBookingLoading] = useState(false);
   const [profileData, setProfileData] = useState({
     name: '',
     phone: '',
@@ -166,6 +167,47 @@ const Index = () => {
     }
   };
 
+  const handleRegisterForYou = async () => {
+    if (!authUser) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to register',
+        variant: 'destructive',
+      });
+      setShowRegisterModal(false);
+      setShowLoginModal(true);
+      return;
+    }
+
+    if (!selectedJob) return;
+
+    try {
+      setBookingLoading(true);
+      
+      const bookingId = await createBooking(
+        selectedJob.id,
+        selectedJob.title,
+        selectedJob.fee || 0
+      );
+      
+      toast({
+        title: 'Request Submitted',
+        description: 'We will contact you soon with registration details',
+      });
+      
+      setShowRegisterModal(false);
+    } catch (error: any) {
+      console.error('Error creating booking:', error);
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to submit request',
+        variant: 'destructive',
+      });
+    } finally {
+      setBookingLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -232,23 +274,57 @@ const Index = () => {
             <DialogTitle>Register for {selectedJob?.title}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="bg-surface rounded-lg p-3">
-              <p className="text-sm text-muted-foreground">Application Fee</p>
-              <p className="text-lg font-bold">₹{selectedJob?.fee || 0}</p>
+            <div className="bg-surface rounded-lg p-4 space-y-2">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Application Fee</span>
+                <span className="text-2xl font-bold text-primary">
+                  ₹{selectedJob?.fee || 0}
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                This is an assisted registration service. We will help you with the registration process.
+              </p>
             </div>
+
             <div className="space-y-3">
-              <div>
-                <Label>Your Name</Label>
-                <Input placeholder="Enter your name" />
+              <Button 
+                className="w-full" 
+                variant="outline"
+                onClick={() => {
+                  window.open('#', '_blank'); // Replace with actual registration URL
+                  setShowRegisterModal(false);
+                }}
+              >
+                Register Yourself
+              </Button>
+              
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <span className="w-full border-t" />
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                </div>
               </div>
-              <div>
-                <Label>Email</Label>
-                <Input type="email" placeholder="Enter your email" />
-              </div>
+
+              <Button 
+                className="w-full bg-accent hover:bg-accent/90"
+                onClick={handleRegisterForYou}
+                disabled={bookingLoading}
+              >
+                {bookingLoading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Submitting...
+                  </>
+                ) : (
+                  'Register For You'
+                )}
+              </Button>
             </div>
-            <Button className="w-full">Submit Request</Button>
+
             <p className="text-xs text-center text-muted-foreground">
-              We will contact you soon with registration details
+              We will contact you via email/phone within 24 hours with registration details and payment instructions.
             </p>
           </div>
         </DialogContent>
