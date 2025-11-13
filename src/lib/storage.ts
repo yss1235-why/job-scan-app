@@ -11,10 +11,17 @@ import {
   addJobNote,
   getJobNotes,
   getNotesForSavedJobs as getNotesForSavedJobsFromFirestore,
+  createBooking as createBookingFirestore,
+  getUserBookings as getUserBookingsFirestore,
+  getAllBookings as getAllBookingsFirestore,
+  markNotificationAsRead as markNotificationAsReadFirestore,
+  getUnreadNotificationCount as getUnreadNotificationCountFirestore,
+  type Booking,
 } from './firebaseService';
 import { auth } from './firebase';
 
-// User management
+// ==================== USER MANAGEMENT ====================
+
 export const saveUser = async (user: User) => {
   try {
     await saveUserToFirestore(user);
@@ -59,7 +66,8 @@ export const refreshUserFromFirestore = async (): Promise<User | null> => {
   return user;
 };
 
-// Saved jobs management
+// ==================== SAVED JOBS MANAGEMENT ====================
+
 export const getSavedJobIds = async (): Promise<string[]> => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -119,7 +127,8 @@ export const isJobSaved = async (jobId: string): Promise<boolean> => {
   }
 };
 
-// Jobs management
+// ==================== JOBS MANAGEMENT ====================
+
 export const getJobs = async (): Promise<Job[]> => {
   try {
     const currentUser = auth.currentUser;
@@ -168,7 +177,8 @@ export const saveJob = async (job: Job) => {
   }
 };
 
-// Notes management
+// ==================== NOTES MANAGEMENT ====================
+
 export const getNotes = async (): Promise<JobNote[]> => {
   const currentUser = auth.currentUser;
   if (!currentUser) {
@@ -205,3 +215,103 @@ export const getNotesForSavedJobs = async (): Promise<JobNote[]> => {
     return [];
   }
 };
+
+// ==================== BOOKING MANAGEMENT ====================
+
+export const createBooking = async (
+  jobId: string,
+  jobTitle: string,
+  fee: number
+): Promise<string> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    throw new Error('User must be logged in to create booking');
+  }
+
+  const user = getUser();
+  if (!user) {
+    throw new Error('User profile not found');
+  }
+
+  try {
+    const bookingId = await createBookingFirestore({
+      jobId,
+      jobTitle,
+      userId: currentUser.uid,
+      userName: user.name,
+      userEmail: user.email,
+      fee,
+      status: 'pending',
+    });
+    return bookingId;
+  } catch (error) {
+    console.error('Error creating booking:', error);
+    throw error;
+  }
+};
+
+export const getUserBookings = async (): Promise<Booking[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  try {
+    return await getUserBookingsFirestore(currentUser.uid);
+  } catch (error) {
+    console.error('Error getting user bookings:', error);
+    return [];
+  }
+};
+
+export const getAllBookings = async (): Promise<Booking[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  const user = getUser();
+  if (user?.role !== 'admin') {
+    throw new Error('Admin access required');
+  }
+
+  try {
+    return await getAllBookingsFirestore();
+  } catch (error) {
+    console.error('Error getting all bookings:', error);
+    return [];
+  }
+};
+
+// ==================== NOTIFICATION MANAGEMENT ====================
+
+export const markNotificationRead = async (noteId: string): Promise<void> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return;
+  }
+
+  try {
+    await markNotificationAsReadFirestore(currentUser.uid, noteId);
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    throw error;
+  }
+};
+
+export const getUnreadCount = async (): Promise<number> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return 0;
+  }
+
+  try {
+    return await getUnreadNotificationCountFirestore(currentUser.uid);
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    return 0;
+  }
+};
+
+// Export Booking type for use in other files
+export type { Booking };
