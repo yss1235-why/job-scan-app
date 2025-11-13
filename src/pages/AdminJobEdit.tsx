@@ -16,7 +16,6 @@ const AdminJobEdit = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const user = getUser();
   const isNew = jobId === 'new';
 
   const [loading, setLoading] = useState(false);
@@ -29,10 +28,12 @@ const AdminJobEdit = () => {
     applyBy: '',
     examDate: '',
     description: '',
-    registrationLink: '', // NEW FIELD
+    registrationLink: '',
   });
 
+  // Check admin access once on mount
   useEffect(() => {
+    const user = getUser();
     if (!user || user.role !== 'admin') {
       toast({
         title: 'Access Denied',
@@ -40,13 +41,15 @@ const AdminJobEdit = () => {
         variant: 'destructive',
       });
       navigate('/');
-      return;
     }
+  }, []); // Empty dependency array - runs once on mount
 
+  // Load job data when jobId changes
+  useEffect(() => {
     if (!isNew && jobId) {
       loadJob(jobId);
     }
-  }, [user, jobId, isNew, navigate]);
+  }, [jobId, isNew]); // Only depends on jobId and isNew
 
   const loadJob = async (id: string) => {
     try {
@@ -57,7 +60,7 @@ const AdminJobEdit = () => {
           ...job,
           applyBy: job.applyBy?.split('T')[0] || '',
           examDate: job.examDate?.split('T')[0] || '',
-          registrationLink: job.registrationLink || '', // Load existing link
+          registrationLink: job.registrationLink || '',
         });
       }
     } catch (error) {
@@ -108,7 +111,7 @@ const AdminJobEdit = () => {
         applyBy: formData.applyBy!,
         examDate: formData.examDate || '',
         description: formData.description || '',
-        registrationLink: formData.registrationLink || '', // SAVE NEW FIELD
+        registrationLink: formData.registrationLink || '',
         createdAt: isNew ? new Date() : (formData.createdAt || new Date()),
         lastUpdated: new Date(),
       };
@@ -213,7 +216,6 @@ const AdminJobEdit = () => {
               />
             </div>
 
-            {/* NEW REGISTRATION LINK FIELD */}
             <div>
               <Label htmlFor="registrationLink">Official Registration Link</Label>
               <Input
