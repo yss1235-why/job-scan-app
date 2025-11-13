@@ -1,8 +1,11 @@
+import { useState, useEffect } from 'react';
 import { LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import JobCard from '@/components/JobCard';
 import { getJobs, getSavedJobIds, getUser } from '@/lib/storage';
 import { Job } from '@/types/job';
+import { subscribeToSavedJobs } from '@/lib/firebaseService';
+import { auth } from '@/lib/firebase';
 
 interface SavedProps {
   onJobDetailsClick: (job: Job) => void;
@@ -11,9 +14,47 @@ interface SavedProps {
 }
 
 const Saved = ({ onJobDetailsClick, onRegisterClick, onLoginClick }: SavedProps) => {
-  const user = getUser();
-  const savedJobIds = getSavedJobIds();
-  const allJobs = getJobs();
+  const [user, setUser] = useState(getUser());
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [allJobs, setAllJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    setUser(getUser());
+    loadData();
+    
+    // Subscribe to real-time saved jobs updates
+    let unsubscribe: (() => void) | undefined;
+    
+    if (auth.currentUser) {
+      unsubscribe = subscribeToSavedJobs(auth.currentUser.uid, (jobIds) => {
+        setSavedJobIds(jobIds);
+      });
+    }
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+  
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [jobs, savedIds] = await Promise.all([
+        getJobs(),
+        getSavedJobIds()
+      ]);
+      setAllJobs(jobs);
+      setSavedJobIds(savedIds);
+    } catch (error) {
+      console.error('Error loading saved jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const savedJobs = allJobs.filter(job => savedJobIds.includes(job.id));
   
   if (!user) {
@@ -30,6 +71,17 @@ const Saved = ({ onJobDetailsClick, onRegisterClick, onLoginClick }: SavedProps)
           <Button onClick={onLoginClick} className="w-full">
             Sign in with Google
           </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading saved jobs...</p>
         </div>
       </div>
     );
