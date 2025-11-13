@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { getNotesForSavedJobs, getSavedJobIds, getJobs } from '@/lib/storage';
+import { Badge } from '@/components/ui/badge';
+import { getNotesForSavedJobs, getSavedJobIds, getJobs, markNotificationRead } from '@/lib/storage';
+import { getReadNotifications } from '@/lib/firebaseService';
 import { formatDistanceToNow } from 'date-fns';
 import { JobNote } from '@/types/job';
+import { auth } from '@/lib/firebase';
 
 interface NotificationsProps {
   onJobDetailsClick: (jobId: string) => void;
@@ -13,6 +16,7 @@ const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
   const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
   const [notes, setNotes] = useState<JobNote[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [readNotes, setReadNotes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
@@ -22,20 +26,38 @@ const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [savedIds, fetchedNotes, fetchedJobs] = await Promise.all([
+      const currentUser = auth.currentUser;
+      
+      const [savedIds, fetchedNotes, fetchedJobs, readIds] = await Promise.all([
         getSavedJobIds(),
         getNotesForSavedJobs(),
-        getJobs()
+        getJobs(),
+        currentUser ? getReadNotifications(currentUser.uid) : Promise.resolve([]),
       ]);
       
       setSavedJobIds(savedIds);
       setNotes(fetchedNotes);
       setJobs(fetchedJobs);
+      setReadNotes(readIds);
     } catch (error) {
       console.error('Error loading notifications:', error);
     } finally {
       setLoading(false);
     }
+  };
+  
+  const handleMarkAsRead = async (noteId: string) => {
+    try {
+      await markNotificationRead(noteId);
+      setReadNotes([...readNotes, noteId]);
+    } catch (error) {
+      console.error('Error marking as read:', error);
+    }
+  };
+
+  const handleViewJob = (jobId: string, noteId: string) => {
+    handleMarkAsRead(noteId);
+    onJobDetailsClick(jobId);
   };
   
   if (loading) {
@@ -64,10 +86,17 @@ const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
       </div>
     );
   }
+
+  const unreadCount = notes.filter(note => !readNotes.includes(note.id)).length;
   
   return (
     <div className="pb-20 p-4 max-w-2xl mx-auto">
-      <h2 className="text-xl font-bold mb-4">Notifications</h2>
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Notifications</h2>
+        {unreadCount > 0 && (
+          <Badge variant="default">{unreadCount} unread</Badge>
+        )}
+      </div>
       
       {notes.length === 0 ? (
         <div className="text-center py-12">
@@ -80,13 +109,22 @@ const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
         <div className="space-y-3">
           {notes.map(note => {
             const job = jobs.find(j => j.id === note.jobId);
+            const isRead = readNotes.includes(note.id);
+            
             return (
               <div
                 key={note.id}
-                className="bg-card border border-border rounded-xl p-3 shadow-sm"
+                className={`bg-card border rounded-xl p-3 shadow-sm transition-all ${
+                  isRead ? 'border-border' : 'border-primary/50 bg-primary/5'
+                }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className="flex-1">
+                    {!isRead && (
+                      <Badge variant="default" className="mb-2 text-xs">
+                        New
+                      </Badge>
+                    )}
                     <p className="font-medium text-sm text-foreground mb-1">
                       {note.message}
                     </p>
@@ -100,14 +138,26 @@ const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
                     {formatDistanceToNow(new Date(note.createdAt), { addSuffix: true })}
                   </span>
                   {job && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onJobDetailsClick(note.jobId)}
-                      className="text-xs h-7"
-                    >
-                      View
-                    </Button>
+                    <div className="flex gap-2">
+                      {!isRead && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMarkAsRead(note.id)}
+                          className="text-xs h-7"
+                        >
+                          Mark Read
+                        </Button>
+                      )}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleViewJob(note.jobId, note.id)}
+                        className="text-xs h-7"
+                      >
+                        View
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
