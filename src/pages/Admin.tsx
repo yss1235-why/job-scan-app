@@ -25,10 +25,11 @@ const Admin = () => {
   const [deleteJobId, setDeleteJobId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const user = getUser();
 
   useEffect(() => {
-    // Debug logs
+    // Get user once when component mounts
+    const user = getUser();
+    
     console.log('Admin component mounted');
     console.log('Current user:', user);
     console.log('User role:', user?.role);
@@ -57,7 +58,7 @@ const Admin = () => {
 
     console.log('User is admin, loading jobs...');
     loadJobs();
-  }, [user, navigate]);
+  }, []); // Empty dependency array - runs only once
 
   const loadJobs = async () => {
     try {
@@ -84,7 +85,6 @@ const Admin = () => {
         variant: 'destructive',
       });
       
-      // Still set loading to false so user can see the error
       setJobs([]);
     } finally {
       setLoading(false);
@@ -114,31 +114,18 @@ const Admin = () => {
     }
   };
 
-  // Show what's happening while loading
   if (loading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground mb-2">Loading admin panel...</p>
-          <p className="text-xs text-muted-foreground">
-            User: {user?.name || 'Unknown'} ({user?.role})
-          </p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => {
-              setLoading(false);
-              console.log('Force stopped loading');
-            }}
-            className="mt-4"
-          >
-            Force Stop (Debug)
-          </Button>
+          <p className="text-muted-foreground">Loading admin panel...</p>
         </div>
       </div>
     );
   }
+
+  const user = getUser();
 
   return (
     <div className="min-h-screen bg-surface">
@@ -195,18 +182,9 @@ const Admin = () => {
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground mb-2">No jobs yet</p>
                 <p className="text-xs text-muted-foreground mb-4">
-                  If you just set up indexes, they may take a few minutes to build.
+                  Create your first job to get started
                 </p>
-                <Button
-                  variant="outline"
-                  onClick={loadJobs}
-                  className="mr-2"
-                >
-                  Retry Loading
-                </Button>
-                <Button
-                  onClick={() => navigate('/admin/job/new')}
-                >
+                <Button onClick={() => navigate('/admin/job/new')}>
                   Create First Job
                 </Button>
               </CardContent>
@@ -242,7 +220,7 @@ const Admin = () => {
                       <Button
                         variant="outline"
                         size="icon"
-                        onClick={() => navigate(`/admin/job/edit/${job.id}`)}
+                        onClick={() => navigate(`/admin/job/${job.id}`)}
                       >
                         <Edit className="w-4 h-4" />
                       </Button>
