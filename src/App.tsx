@@ -15,7 +15,10 @@ const App = () => (
       <Toaster />
       <BrowserRouter>
         <Routes>
-          <Route path="/*" element={<Index />} />
+          <Route path="/" element={<Index />} />
+          <Route path="/saved" element={<Index />} />
+          <Route path="/notifications" element={<Index />} />
+          <Route path="/more" element={<Index />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/admin/job/:jobId" element={<AdminJobEdit />} />
           <Route path="*" element={<NotFound />} />
