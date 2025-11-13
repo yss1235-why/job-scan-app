@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import JobCard from '@/components/JobCard';
 import { getJobs } from '@/lib/storage';
 import { Job } from '@/types/job';
+import { subscribeToJobs } from '@/lib/firebaseService';
+import { auth } from '@/lib/firebase';
 
 interface HomeProps {
   onJobDetailsClick: (job: Job) => void;
@@ -12,12 +14,58 @@ interface HomeProps {
 
 const Home = ({ onJobDetailsClick, onRegisterClick }: HomeProps) => {
   const [searchQuery, setSearchQuery] = useState('');
-  const jobs = getJobs().filter(job => job.published);
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    // Initial load
+    loadJobs();
+    
+    // Subscribe to real-time updates if user is authenticated
+    let unsubscribe: (() => void) | undefined;
+    
+    if (auth.currentUser) {
+      unsubscribe = subscribeToJobs((updatedJobs) => {
+        setJobs(updatedJobs);
+        setLoading(false);
+      });
+    }
+    
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
+  }, []);
+  
+  const loadJobs = async () => {
+    try {
+      setLoading(true);
+      const fetchedJobs = await getJobs();
+      const publishedJobs = fetchedJobs.filter(job => job.published);
+      setJobs(publishedJobs);
+    } catch (error) {
+      console.error('Error loading jobs:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const filteredJobs = jobs.filter(job =>
     job.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     job.location.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading jobs...</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div className="pb-20">
