@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Filter } from 'lucide-react';
+import { ArrowLeft, Filter, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { getUser } from '@/lib/storage';
-import { getAllBookings, updateBookingStatus, type Booking } from '@/lib/firebaseService';
+import { getAllBookings, updateBookingStatus, deleteBooking, type Booking } from '@/lib/firebaseService';
 import { useToast } from '@/hooks/use-toast';
 import {
   Select,
@@ -14,12 +14,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filteredBookings, setFilteredBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -72,7 +83,6 @@ const AdminBookings = () => {
     try {
       await updateBookingStatus(bookingId, newStatus);
       
-      // Update local state
       setBookings(bookings.map(b => 
         b.id === bookingId ? { ...b, status: newStatus } : b
       ));
@@ -88,6 +98,30 @@ const AdminBookings = () => {
         description: 'Failed to update status',
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleDeleteBooking = async () => {
+    if (!deleteBookingId) return;
+
+    try {
+      await deleteBooking(deleteBookingId);
+      
+      setBookings(bookings.filter(b => b.id !== deleteBookingId));
+      
+      toast({
+        title: 'Request Deleted',
+        description: 'Registration request has been permanently deleted',
+      });
+    } catch (error: any) {
+      console.error('Error deleting booking:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete request',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteBookingId(null);
     }
   };
 
@@ -202,7 +236,7 @@ const AdminBookings = () => {
               <Card key={booking.id}>
                 <CardContent className="p-4">
                   <div className="space-y-3">
-                    {/* Header */}
+                    {/* Header with Delete Button */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <h3 className="font-semibold text-sm mb-1">{booking.jobTitle}</h3>
@@ -210,9 +244,19 @@ const AdminBookings = () => {
                           Fee: ₹{booking.fee}
                         </p>
                       </div>
-                      <Badge variant={getStatusBadgeVariant(booking.status)}>
-                        {booking.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={getStatusBadgeVariant(booking.status)}>
+                          {booking.status}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setDeleteBookingId(booking.id)}
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
 
                     {/* User Details */}
@@ -284,6 +328,27 @@ const AdminBookings = () => {
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteBookingId} onOpenChange={() => setDeleteBookingId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Registration Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the registration request from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteBooking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };
