@@ -28,7 +28,24 @@ const Admin = () => {
   const user = getUser();
 
   useEffect(() => {
-    if (!user || user.role !== 'admin') {
+    // Debug logs
+    console.log('Admin component mounted');
+    console.log('Current user:', user);
+    console.log('User role:', user?.role);
+
+    if (!user) {
+      console.log('No user found, redirecting to home');
+      toast({
+        title: 'Please sign in',
+        description: 'You need to sign in to access admin panel',
+        variant: 'destructive',
+      });
+      navigate('/');
+      return;
+    }
+
+    if (user.role !== 'admin') {
+      console.log('User is not admin, redirecting');
       toast({
         title: 'Access Denied',
         description: 'You do not have admin privileges',
@@ -37,23 +54,41 @@ const Admin = () => {
       navigate('/');
       return;
     }
+
+    console.log('User is admin, loading jobs...');
     loadJobs();
   }, [user, navigate]);
 
   const loadJobs = async () => {
     try {
+      console.log('Starting to load jobs...');
       setLoading(true);
+      
       const allJobs = await getAllJobs();
+      console.log('Jobs loaded:', allJobs.length);
+      console.log('Jobs data:', allJobs);
+      
       setJobs(allJobs.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()));
-    } catch (error) {
-      console.error('Error loading jobs:', error);
+      
       toast({
-        title: 'Error',
-        description: 'Failed to load jobs',
+        title: 'Success',
+        description: `Loaded ${allJobs.length} jobs`,
+      });
+    } catch (error: any) {
+      console.error('Error loading jobs:', error);
+      console.error('Error details:', error.message, error.code);
+      
+      toast({
+        title: 'Error Loading Jobs',
+        description: error.message || 'Failed to load jobs. Check console for details.',
         variant: 'destructive',
       });
+      
+      // Still set loading to false so user can see the error
+      setJobs([]);
     } finally {
       setLoading(false);
+      console.log('Loading complete');
     }
   };
 
@@ -67,11 +102,11 @@ const Admin = () => {
         description: 'Job deleted successfully',
       });
       loadJobs();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting job:', error);
       toast({
         title: 'Error',
-        description: 'Failed to delete job',
+        description: error.message || 'Failed to delete job',
         variant: 'destructive',
       });
     } finally {
@@ -79,12 +114,27 @@ const Admin = () => {
     }
   };
 
+  // Show what's happening while loading
   if (loading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading...</p>
+          <p className="text-muted-foreground mb-2">Loading admin panel...</p>
+          <p className="text-xs text-muted-foreground">
+            User: {user?.name || 'Unknown'} ({user?.role})
+          </p>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => {
+              setLoading(false);
+              console.log('Force stopped loading');
+            }}
+            className="mt-4"
+          >
+            Force Stop (Debug)
+          </Button>
         </div>
       </div>
     );
@@ -143,9 +193,18 @@ const Admin = () => {
           {jobs.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center">
-                <p className="text-muted-foreground">No jobs yet</p>
+                <p className="text-muted-foreground mb-2">No jobs yet</p>
+                <p className="text-xs text-muted-foreground mb-4">
+                  If you just set up indexes, they may take a few minutes to build.
+                </p>
                 <Button
-                  className="mt-4"
+                  variant="outline"
+                  onClick={loadJobs}
+                  className="mr-2"
+                >
+                  Retry Loading
+                </Button>
+                <Button
                   onClick={() => navigate('/admin/job/new')}
                 >
                   Create First Job
