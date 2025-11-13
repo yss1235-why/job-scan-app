@@ -1,16 +1,53 @@
+import { useState, useEffect } from 'react';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { getNotesForSavedJobs, getSavedJobIds, getJobs } from '@/lib/storage';
 import { formatDistanceToNow } from 'date-fns';
+import { JobNote } from '@/types/job';
 
 interface NotificationsProps {
   onJobDetailsClick: (jobId: string) => void;
 }
 
 const Notifications = ({ onJobDetailsClick }: NotificationsProps) => {
-  const savedJobIds = getSavedJobIds();
-  const notes = getNotesForSavedJobs();
-  const jobs = getJobs();
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [notes, setNotes] = useState<JobNote[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  
+  useEffect(() => {
+    loadData();
+  }, []);
+  
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [savedIds, fetchedNotes, fetchedJobs] = await Promise.all([
+        getSavedJobIds(),
+        getNotesForSavedJobs(),
+        getJobs()
+      ]);
+      
+      setSavedJobIds(savedIds);
+      setNotes(fetchedNotes);
+      setJobs(fetchedJobs);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading notifications...</p>
+        </div>
+      </div>
+    );
+  }
   
   if (savedJobIds.length === 0) {
     return (
