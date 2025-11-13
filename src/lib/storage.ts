@@ -1,151 +1,207 @@
 import { Job, User, JobNote } from '@/types/job';
-
-// Simulated backend using localStorage
-const STORAGE_KEYS = {
-  USER: 'jobnotify_user',
-  SAVED_JOBS: 'jobnotify_saved_jobs',
-  JOBS: 'jobnotify_jobs',
-  NOTES: 'jobnotify_notes',
-};
+import {
+  saveUserToFirestore,
+  getUserFromFirestore,
+  getAllJobs,
+  getPublishedJobs,
+  saveJobToFirestore,
+  getSavedJobs,
+  toggleSavedJobInFirestore,
+  isJobSavedByUser,
+  addJobNote,
+  getJobNotes,
+  getNotesForSavedJobs as getNotesForSavedJobsFromFirestore,
+} from './firebaseService';
+import { auth } from './firebase';
 
 // User management
-export const saveUser = (user: User) => {
-  localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
+export const saveUser = async (user: User) => {
+  try {
+    await saveUserToFirestore(user);
+    // Also store in localStorage for quick access
+    localStorage.setItem('jobnotify_user_cache', JSON.stringify(user));
+  } catch (error) {
+    console.error('Error saving user:', error);
+    throw error;
+  }
 };
 
 export const getUser = (): User | null => {
-  const data = localStorage.getItem(STORAGE_KEYS.USER);
-  return data ? JSON.parse(data) : null;
+  // First check if user is authenticated with Firebase
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return null;
+  }
+
+  // Try to get from cache first
+  const cached = localStorage.getItem('jobnotify_user_cache');
+  if (cached) {
+    return JSON.parse(cached);
+  }
+
+  return null;
 };
 
 export const clearUser = () => {
-  localStorage.removeItem(STORAGE_KEYS.USER);
+  localStorage.removeItem('jobnotify_user_cache');
+};
+
+export const refreshUserFromFirestore = async (): Promise<User | null> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return null;
+  }
+
+  const user = await getUserFromFirestore(currentUser.uid);
+  if (user) {
+    localStorage.setItem('jobnotify_user_cache', JSON.stringify(user));
+  }
+  return user;
 };
 
 // Saved jobs management
-export const getSavedJobIds = (): string[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.SAVED_JOBS);
-  return data ? JSON.parse(data) : [];
-};
-
-export const toggleSavedJob = (jobId: string): boolean => {
-  const saved = getSavedJobIds();
-  const index = saved.indexOf(jobId);
-  
-  if (index > -1) {
-    saved.splice(index, 1);
-  } else {
-    saved.push(jobId);
+export const getSavedJobIds = async (): Promise<string[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    // Fallback to localStorage for non-authenticated users
+    const data = localStorage.getItem('jobnotify_saved_jobs');
+    return data ? JSON.parse(data) : [];
   }
-  
-  localStorage.setItem(STORAGE_KEYS.SAVED_JOBS, JSON.stringify(saved));
-  return index === -1; // returns true if job was added
+
+  try {
+    return await getSavedJobs(currentUser.uid);
+  } catch (error) {
+    console.error('Error getting saved jobs:', error);
+    return [];
+  }
 };
 
-export const isJobSaved = (jobId: string): boolean => {
-  return getSavedJobIds().includes(jobId);
+export const toggleSavedJob = async (jobId: string): Promise<boolean> => {
+  const currentUser = auth.currentUser;
+  
+  if (!currentUser) {
+    // Fallback to localStorage for non-authenticated users
+    const saved = JSON.parse(localStorage.getItem('jobnotify_saved_jobs') || '[]');
+    const index = saved.indexOf(jobId);
+    
+    if (index > -1) {
+      saved.splice(index, 1);
+      localStorage.setItem('jobnotify_saved_jobs', JSON.stringify(saved));
+      return false;
+    } else {
+      saved.push(jobId);
+      localStorage.setItem('jobnotify_saved_jobs', JSON.stringify(saved));
+      return true;
+    }
+  }
+
+  try {
+    return await toggleSavedJobInFirestore(currentUser.uid, jobId);
+  } catch (error) {
+    console.error('Error toggling saved job:', error);
+    throw error;
+  }
+};
+
+export const isJobSaved = async (jobId: string): Promise<boolean> => {
+  const currentUser = auth.currentUser;
+  
+  if (!currentUser) {
+    const saved = JSON.parse(localStorage.getItem('jobnotify_saved_jobs') || '[]');
+    return saved.includes(jobId);
+  }
+
+  try {
+    return await isJobSavedByUser(currentUser.uid, jobId);
+  } catch (error) {
+    console.error('Error checking if job is saved:', error);
+    return false;
+  }
 };
 
 // Jobs management
-export const getJobs = (): Job[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.JOBS);
-  if (!data) {
-    // Initialize with sample data
-    const sampleJobs: Job[] = [
-      {
-        id: '1',
-        title: 'Junior Clerk - Manipur PSC',
-        short: 'Government clerical position',
-        location: 'Imphal',
-        fee: 150,
-        published: true,
-        applyBy: '2025-12-15',
-        examDate: '2026-01-20',
-        description: `<h3>How to Register:</h3>
-<ol>
-  <li>Visit the official MPSC website</li>
-  <li>Click on "Apply Online"</li>
-  <li>Fill in your personal details</li>
-  <li>Upload required documents</li>
-  <li>Pay the application fee</li>
-  <li>Submit and download receipt</li>
-</ol>
-
-<h3>Documents Required:</h3>
-<ul>
-  <li>Aadhaar Card</li>
-  <li>Class 10 Marksheet</li>
-  <li>Class 12 Marksheet</li>
-  <li>Recent passport photo</li>
-  <li>Signature scan</li>
-</ul>`,
-        createdAt: new Date(),
-        lastUpdated: new Date(),
-      },
-      {
-        id: '2',
-        title: 'SSC MTS 2025',
-        short: 'Multi-Tasking Staff recruitment',
-        location: 'All India',
-        fee: 100,
-        published: true,
-        applyBy: '2025-11-30',
-        examDate: '2026-02-10',
-        description: `<h3>Exam Pattern:</h3>
-<ul>
-  <li>Paper I: Computer Based Test</li>
-  <li>Paper II: Descriptive Paper</li>
-  <li>Duration: 90 minutes each</li>
-</ul>
-
-<h3>Eligibility:</h3>
-<ul>
-  <li>Age: 18-25 years</li>
-  <li>Qualification: 10th pass</li>
-</ul>`,
-        createdAt: new Date(),
-        lastUpdated: new Date(),
-      },
-    ];
-    localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(sampleJobs));
-    return sampleJobs;
+export const getJobs = async (): Promise<Job[]> => {
+  try {
+    const currentUser = auth.currentUser;
+    
+    // Admin users get all jobs, regular users get only published jobs
+    if (currentUser) {
+      const user = getUser();
+      if (user?.role === 'admin') {
+        return await getAllJobs();
+      }
+    }
+    
+    return await getPublishedJobs();
+  } catch (error) {
+    console.error('Error getting jobs:', error);
+    // Fallback to localStorage sample data
+    const data = localStorage.getItem('jobnotify_jobs');
+    if (!data) {
+      const sampleJobs: Job[] = [
+        {
+          id: '1',
+          title: 'Junior Clerk - Manipur PSC',
+          short: 'Government clerical position',
+          location: 'Imphal',
+          fee: 150,
+          published: true,
+          applyBy: '2025-12-15',
+          examDate: '2026-01-20',
+          description: `<h3>How to Register:</h3><ol><li>Visit the official MPSC website</li></ol>`,
+          createdAt: new Date(),
+          lastUpdated: new Date(),
+        },
+      ];
+      return sampleJobs;
+    }
+    return JSON.parse(data);
   }
-  return JSON.parse(data);
 };
 
-export const saveJob = (job: Job) => {
-  const jobs = getJobs();
-  const index = jobs.findIndex(j => j.id === job.id);
-  
-  if (index > -1) {
-    jobs[index] = job;
-  } else {
-    jobs.push(job);
+export const saveJob = async (job: Job) => {
+  try {
+    await saveJobToFirestore(job);
+  } catch (error) {
+    console.error('Error saving job:', error);
+    throw error;
   }
-  
-  localStorage.setItem(STORAGE_KEYS.JOBS, JSON.stringify(jobs));
 };
 
 // Notes management
-export const getNotes = (): JobNote[] => {
-  const data = localStorage.getItem(STORAGE_KEYS.NOTES);
-  return data ? JSON.parse(data) : [];
+export const getNotes = async (): Promise<JobNote[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  try {
+    return await getNotesForSavedJobsFromFirestore(currentUser.uid);
+  } catch (error) {
+    console.error('Error getting notes:', error);
+    return [];
+  }
 };
 
-export const addNote = (jobId: string, message: string) => {
-  const notes = getNotes();
-  const newNote: JobNote = {
-    id: Date.now().toString(),
-    jobId,
-    message,
-    createdAt: new Date(),
-  };
-  notes.unshift(newNote);
-  localStorage.setItem(STORAGE_KEYS.NOTES, JSON.stringify(notes));
+export const addNote = async (jobId: string, message: string) => {
+  try {
+    await addJobNote(jobId, message);
+  } catch (error) {
+    console.error('Error adding note:', error);
+    throw error;
+  }
 };
 
-export const getNotesForSavedJobs = (): JobNote[] => {
-  const savedJobIds = getSavedJobIds();
-  const allNotes = getNotes();
-  return allNotes.filter(note => savedJobIds.includes(note.jobId));
+export const getNotesForSavedJobs = async (): Promise<JobNote[]> => {
+  const currentUser = auth.currentUser;
+  if (!currentUser) {
+    return [];
+  }
+
+  try {
+    return await getNotesForSavedJobsFromFirestore(currentUser.uid);
+  } catch (error) {
+    console.error('Error getting notes for saved jobs:', error);
+    return [];
+  }
 };
