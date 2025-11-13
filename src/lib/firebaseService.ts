@@ -168,12 +168,12 @@ export const toggleSavedJobInFirestore = async (uid: string, jobId: string): Pro
     
     if (savedJobDoc.exists()) {
       await deleteDoc(savedJobRef);
-      return false; // Job was removed
+      return false;
     } else {
       await setDoc(savedJobRef, {
         savedAt: serverTimestamp(),
       });
-      return true; // Job was added
+      return true;
     }
   } catch (error) {
     console.error('Error toggling saved job:', error);
@@ -235,7 +235,6 @@ export const getNotesForSavedJobs = async (uid: string): Promise<JobNote[]> => {
       allNotes.push(...notes);
     }
     
-    // Sort by date, most recent first
     allNotes.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
     
     return allNotes;
@@ -319,6 +318,16 @@ export const updateBookingStatus = async (
     });
   } catch (error) {
     console.error('Error updating booking status:', error);
+    throw error;
+  }
+};
+
+// NEW FUNCTION: Delete a booking
+export const deleteBooking = async (bookingId: string) => {
+  try {
+    await deleteDoc(doc(db, 'bookings', bookingId));
+  } catch (error) {
+    console.error('Error deleting booking:', error);
     throw error;
   }
 };
