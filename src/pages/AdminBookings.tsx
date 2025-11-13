@@ -91,6 +91,22 @@ const AdminBookings = () => {
     }
   };
 
+  const getStatusBadgeVariant = (status: Booking['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'default';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const getStatusCount = (status: string) => {
+    if (status === 'all') return bookings.length;
+    return bookings.filter(b => b.status === status).length;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-surface flex items-center justify-center">
@@ -117,7 +133,41 @@ const AdminBookings = () => {
       </header>
 
       <div className="p-4 max-w-4xl mx-auto pb-20">
-        {/* Filter */}
+        {/* Summary Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-4">
+          <Card className="cursor-pointer hover:bg-surface" onClick={() => setStatusFilter('all')}>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-primary">{getStatusCount('all')}</p>
+              <p className="text-xs text-muted-foreground">All</p>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:bg-surface" onClick={() => setStatusFilter('pending')}>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-yellow-600">{getStatusCount('pending')}</p>
+              <p className="text-xs text-muted-foreground">Pending</p>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:bg-surface" onClick={() => setStatusFilter('processing')}>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-blue-600">{getStatusCount('processing')}</p>
+              <p className="text-xs text-muted-foreground">Processing</p>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:bg-surface" onClick={() => setStatusFilter('completed')}>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-green-600">{getStatusCount('completed')}</p>
+              <p className="text-xs text-muted-foreground">Completed</p>
+            </CardContent>
+          </Card>
+          <Card className="cursor-pointer hover:bg-surface" onClick={() => setStatusFilter('cancelled')}>
+            <CardContent className="p-3 text-center">
+              <p className="text-2xl font-bold text-red-600">{getStatusCount('cancelled')}</p>
+              <p className="text-xs text-muted-foreground">Cancelled</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Filter Dropdown */}
         <div className="mb-4 flex items-center gap-2">
           <Filter className="w-4 h-4 text-muted-foreground" />
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -140,6 +190,11 @@ const AdminBookings = () => {
             <Card>
               <CardContent className="py-12 text-center">
                 <p className="text-muted-foreground">No registration requests found</p>
+                {statusFilter !== 'all' && (
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Try changing the filter to see more requests
+                  </p>
+                )}
               </CardContent>
             </Card>
           ) : (
@@ -155,11 +210,7 @@ const AdminBookings = () => {
                           Fee: ₹{booking.fee}
                         </p>
                       </div>
-                      <Badge variant={
-                        booking.status === 'completed' ? 'default' :
-                        booking.status === 'cancelled' ? 'destructive' :
-                        'secondary'
-                      }>
+                      <Badge variant={getStatusBadgeVariant(booking.status)}>
                         {booking.status}
                       </Badge>
                     </div>
@@ -172,15 +223,23 @@ const AdminBookings = () => {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Email</p>
-                        <p className="font-medium">{booking.userEmail}</p>
+                        <p className="font-medium truncate">{booking.userEmail}</p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-muted-foreground">Requested</p>
-                        <p className="font-medium">{booking.createdAt.toLocaleDateString()}</p>
+                        <p className="text-muted-foreground">Requested On</p>
+                        <p className="font-medium">
+                          {booking.createdAt.toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Status Update */}
+                    {/* Status Update Buttons */}
                     <div>
                       <p className="text-xs text-muted-foreground mb-2">Update Status:</p>
                       <div className="flex gap-2 flex-wrap">
@@ -188,6 +247,7 @@ const AdminBookings = () => {
                           size="sm"
                           variant={booking.status === 'pending' ? 'default' : 'outline'}
                           onClick={() => handleStatusChange(booking.id, 'pending')}
+                          disabled={booking.status === 'pending'}
                         >
                           Pending
                         </Button>
@@ -195,6 +255,7 @@ const AdminBookings = () => {
                           size="sm"
                           variant={booking.status === 'processing' ? 'default' : 'outline'}
                           onClick={() => handleStatusChange(booking.id, 'processing')}
+                          disabled={booking.status === 'processing'}
                         >
                           In Progress
                         </Button>
@@ -202,6 +263,7 @@ const AdminBookings = () => {
                           size="sm"
                           variant={booking.status === 'completed' ? 'default' : 'outline'}
                           onClick={() => handleStatusChange(booking.id, 'completed')}
+                          disabled={booking.status === 'completed'}
                         >
                           Completed
                         </Button>
@@ -209,6 +271,7 @@ const AdminBookings = () => {
                           size="sm"
                           variant={booking.status === 'cancelled' ? 'destructive' : 'outline'}
                           onClick={() => handleStatusChange(booking.id, 'cancelled')}
+                          disabled={booking.status === 'cancelled'}
                         >
                           Cancelled
                         </Button>
