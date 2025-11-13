@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { saveUser, getUser, refreshUserFromFirestore, createBooking } from '@/lib/storage';
 import { getJobs } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, ExternalLink, HandHeart } from 'lucide-react';
 
 const Index = () => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -25,7 +25,7 @@ const Index = () => {
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showWarningModal, setShowWarningModal] = useState(false); // NEW WARNING MODAL
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const [loading, setLoading] = useState(true);
   const [authUser, setAuthUser] = useState<any>(null);
   const [bookingLoading, setBookingLoading] = useState(false);
@@ -44,10 +44,8 @@ const Index = () => {
       setLoading(true);
       if (user) {
         setAuthUser(user);
-        // Check if user profile is complete
         const userProfile = await refreshUserFromFirestore();
         if (!userProfile) {
-          // New user, show profile completion modal
           setProfileData({
             name: user.displayName || '',
             phone: '',
@@ -88,11 +86,9 @@ const Index = () => {
       
       setShowLoginModal(false);
       
-      // Check if user exists in Firestore
       const existingUser = await refreshUserFromFirestore();
       
       if (!existingUser) {
-        // New user, show profile completion
         setProfileData({
           name: user.displayName || '',
           phone: '',
@@ -134,7 +130,6 @@ const Index = () => {
     try {
       setLoading(true);
       
-      // Check if user email is in admin list
       const role = isUserAdmin(authUser.email) ? 'admin' : 'user';
       
       await saveUser({
@@ -169,11 +164,9 @@ const Index = () => {
     }
   };
 
-  // NEW FUNCTION: Handle "Register Yourself" with warning
   const handleRegisterYourself = () => {
     if (!selectedJob) return;
 
-    // Check if registration link exists
     if (!selectedJob.registrationLink || selectedJob.registrationLink.trim() === '') {
       toast({
         title: 'Link Not Available',
@@ -183,11 +176,9 @@ const Index = () => {
       return;
     }
 
-    // Show warning modal
     setShowWarningModal(true);
   };
 
-  // NEW FUNCTION: Confirm redirect to registration link
   const handleConfirmRedirect = () => {
     if (selectedJob && selectedJob.registrationLink) {
       window.open(selectedJob.registrationLink, '_blank');
@@ -301,43 +292,75 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Register Modal */}
+      {/* Register Modal - UPDATED WITH CLEARER OPTIONS */}
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Register for {selectedJob?.title}</DialogTitle>
+            <DialogTitle>Choose Registration Method</DialogTitle>
+            <DialogDescription>
+              Select how you would like to register for {selectedJob?.title}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="bg-surface rounded-lg p-4 space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-muted-foreground">Application Fee</span>
-                <span className="text-2xl font-bold text-primary">
-                  ₹{selectedJob?.fee || 0}
-                </span>
+          <div className="space-y-3">
+            {/* Register Yourself Option */}
+            <div className="border-2 border-primary/20 rounded-lg p-4 hover:border-primary/40 transition-colors">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <ExternalLink className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold">Register Yourself</h3>
+                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                      FREE
+                    </span>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• You will be redirected to the official website</li>
+                    <li>• Complete the registration on your own</li>
+                    <li>• No fees required</li>
+                  </ul>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground">
-                This is an assisted registration service. We will help you with the registration process.
-              </p>
-            </div>
-
-            <div className="space-y-3">
               <Button 
                 className="w-full" 
                 variant="outline"
                 onClick={handleRegisterYourself}
               >
-                Register Yourself
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Go to Official Website
               </Button>
-              
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t" />
+            </div>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Or</span>
+              </div>
+            </div>
+
+            {/* Register For You Option */}
+            <div className="border-2 border-accent/20 rounded-lg p-4 hover:border-accent/40 transition-colors">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center flex-shrink-0">
+                  <HandHeart className="w-5 h-5 text-accent" />
                 </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-background px-2 text-muted-foreground">Or</span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="font-semibold">Register For You</h3>
+                    <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full font-medium">
+                      ₹{selectedJob?.fee || 0}
+                    </span>
+                  </div>
+                  <ul className="text-xs text-muted-foreground space-y-1">
+                    <li>• We will handle the entire registration process</li>
+                    <li>• Assisted service with expert guidance</li>
+                    <li>• Service fee applies</li>
+                  </ul>
                 </div>
               </div>
-
               <Button 
                 className="w-full bg-accent hover:bg-accent/90"
                 onClick={handleRegisterForYou}
@@ -349,19 +372,22 @@ const Index = () => {
                     Submitting...
                   </>
                 ) : (
-                  'Register For You'
+                  <>
+                    <HandHeart className="w-4 h-4 mr-2" />
+                    Request Assisted Registration
+                  </>
                 )}
               </Button>
             </div>
 
-            <p className="text-xs text-center text-muted-foreground">
-              We will contact you via email/phone within 24 hours with registration details and payment instructions.
+            <p className="text-xs text-center text-muted-foreground pt-2">
+              For assisted registration, we will contact you via email/phone within 24 hours with details and payment instructions.
             </p>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* NEW WARNING MODAL */}
+      {/* Warning Modal for External Redirect */}
       <Dialog open={showWarningModal} onOpenChange={setShowWarningModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
