@@ -1,9 +1,11 @@
+import { useState, useEffect } from 'react';
 import { Star, MapPin, Calendar } from 'lucide-react';
 import { Button } from './ui/button';
 import { Job } from '@/types/job';
 import { isJobSaved, toggleSavedJob } from '@/lib/storage';
-import { useState } from 'react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
+import { auth } from '@/lib/firebase';
 
 interface JobCardProps {
   job: Job;
@@ -12,11 +14,52 @@ interface JobCardProps {
 }
 
 const JobCard = ({ job, onDetailsClick, onRegisterClick }: JobCardProps) => {
-  const [saved, setSaved] = useState(isJobSaved(job.id));
+  const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const { toast } = useToast();
   
-  const handleSaveToggle = () => {
-    toggleSavedJob(job.id);
-    setSaved(!saved);
+  useEffect(() => {
+    checkIfSaved();
+  }, [job.id]);
+  
+  const checkIfSaved = async () => {
+    try {
+      const isSaved = await isJobSaved(job.id);
+      setSaved(isSaved);
+    } catch (error) {
+      console.error('Error checking if job is saved:', error);
+    }
+  };
+  
+  const handleSaveToggle = async () => {
+    if (!auth.currentUser) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in to save jobs',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      const isSaved = await toggleSavedJob(job.id);
+      setSaved(isSaved);
+      
+      toast({
+        title: isSaved ? 'Job saved' : 'Job removed',
+        description: isSaved ? 'You will receive updates for this job' : 'Job removed from saved list',
+      });
+    } catch (error) {
+      console.error('Error toggling saved job:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to update saved status',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
   
   return (
@@ -30,7 +73,8 @@ const JobCard = ({ job, onDetailsClick, onRegisterClick }: JobCardProps) => {
         </div>
         <button
           onClick={handleSaveToggle}
-          className="p-1.5 hover:bg-surface rounded-lg transition-colors"
+          disabled={loading}
+          className="p-1.5 hover:bg-surface rounded-lg transition-colors disabled:opacity-50"
         >
           <Star
             className={cn(
