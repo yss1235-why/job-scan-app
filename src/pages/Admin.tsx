@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, ArrowLeft, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, ArrowLeft, Edit, Trash2, Eye, EyeOff, ClipboardList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -27,7 +27,6 @@ const Admin = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Get user once when component mounts
     const user = getUser();
     
     console.log('Admin component mounted');
@@ -58,7 +57,7 @@ const Admin = () => {
 
     console.log('User is admin, loading jobs...');
     loadJobs();
-  }, []); // Empty dependency array - runs only once
+  }, []);
 
   const loadJobs = async () => {
     try {
@@ -125,8 +124,6 @@ const Admin = () => {
     );
   }
 
-  const user = getUser();
-
   return (
     <div className="min-h-screen bg-surface">
       <header className="sticky top-0 bg-card border-b border-border z-40 px-4 py-3">
@@ -172,6 +169,23 @@ const Admin = () => {
                 <p className="text-xs text-muted-foreground">Drafts</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* NEW REGISTRATION REQUESTS BUTTON */}
+        <Card className="mb-4">
+          <CardContent className="p-4">
+            <Button 
+              className="w-full justify-start"
+              variant="outline"
+              onClick={() => navigate('/admin/bookings')}
+            >
+              <ClipboardList className="w-5 h-5 mr-3" />
+              <div className="flex-1 text-left">
+                <p className="font-semibold">Registration Requests</p>
+                <p className="text-xs text-muted-foreground">Manage user registration requests</p>
+              </div>
+            </Button>
           </CardContent>
         </Card>
 
