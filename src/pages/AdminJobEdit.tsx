@@ -11,6 +11,7 @@ import { getUser } from '@/lib/storage';
 import { getJobById, saveJobToFirestore, addJobNote } from '@/lib/firebaseService';
 import { Job } from '@/types/job';
 import { useToast } from '@/hooks/use-toast';
+import { validateJobData } from '@/lib/sanitize';
 
 const AdminJobEdit = () => {
   const { jobId } = useParams();
@@ -19,6 +20,7 @@ const AdminJobEdit = () => {
   const isNew = jobId === 'new';
 
   const [loading, setLoading] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [formData, setFormData] = useState<Partial<Job>>({
     title: '',
     short: '',
@@ -31,7 +33,6 @@ const AdminJobEdit = () => {
     registrationLink: '',
   });
 
-  // Check admin access once on mount
   useEffect(() => {
     const user = getUser();
     if (!user || user.role !== 'admin') {
@@ -42,14 +43,13 @@ const AdminJobEdit = () => {
       });
       navigate('/');
     }
-  }, []); // Empty dependency array - runs once on mount
+  }, []);
 
-  // Load job data when jobId changes
   useEffect(() => {
     if (!isNew && jobId) {
       loadJob(jobId);
     }
-  }, [jobId, isNew]); // Only depends on jobId and isNew
+  }, [jobId, isNew]);
 
   const loadJob = async (id: string) => {
     try {
@@ -88,30 +88,51 @@ const AdminJobEdit = () => {
     });
   };
 
+  const handleFieldChange = (field: string, value: any) => {
+    setFormData({
+      ...formData,
+      [field]: value,
+    });
+    
+    // Clear validation error for this field when user types
+    if (validationErrors[field]) {
+      const { [field]: _, ...rest } = validationErrors;
+      setValidationErrors(rest);
+    }
+  };
+
   const handleSave = async () => {
-    if (!formData.title || !formData.location || !formData.applyBy) {
+    // Validate all job data
+    const validation = validateJobData({
+      title: formData.title,
+      short: formData.short,
+      location: formData.location,
+      fee: formData.fee || 0,
+      applyBy: formData.applyBy,
+      examDate: formData.examDate,
+      description: formData.description,
+      registrationLink: formData.registrationLink,
+    });
+
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
       toast({
-        title: 'Missing Information',
-        description: 'Please fill in all required fields',
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
         variant: 'destructive',
       });
       return;
     }
+
+    setValidationErrors({});
 
     try {
       setLoading(true);
       
       const jobData: Job = {
         id: isNew ? `job_${Date.now()}` : jobId!,
-        title: formData.title!,
-        short: formData.short || '',
-        location: formData.location!,
-        fee: formData.fee || 0,
+        ...validation.sanitizedData!, // Use sanitized data
         published: formData.published || false,
-        applyBy: formData.applyBy!,
-        examDate: formData.examDate || '',
-        description: formData.description || '',
-        registrationLink: formData.registrationLink || '',
         createdAt: isNew ? new Date() : (formData.createdAt || new Date()),
         lastUpdated: new Date(),
       };
@@ -129,11 +150,11 @@ const AdminJobEdit = () => {
       });
 
       navigate('/admin');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving job:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save job',
+        description: error.message || 'Failed to save job',
         variant: 'destructive',
       });
     } finally {
@@ -180,9 +201,13 @@ const AdminJobEdit = () => {
               <Input
                 id="title"
                 value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                onChange={(e) => handleFieldChange('title', e.target.value)}
                 placeholder="e.g., Junior Clerk - MPSC"
+                className={validationErrors.title ? 'border-red-500' : ''}
               />
+              {validationErrors.title && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.title}</p>
+              )}
             </div>
 
             <div>
@@ -190,9 +215,13 @@ const AdminJobEdit = () => {
               <Input
                 id="short"
                 value={formData.short}
-                onChange={(e) => setFormData({ ...formData, short: e.target.value })}
+                onChange={(e) => handleFieldChange('short', e.target.value)}
                 placeholder="e.g., Government clerical position"
+                className={validationErrors.short ? 'border-red-500' : ''}
               />
+              {validationErrors.short && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.short}</p>
+              )}
             </div>
 
             <div>
@@ -200,9 +229,13 @@ const AdminJobEdit = () => {
               <Input
                 id="location"
                 value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
+                onChange={(e) => handleFieldChange('location', e.target.value)}
                 placeholder="e.g., Imphal"
+                className={validationErrors.location ? 'border-red-500' : ''}
               />
+              {validationErrors.location && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.location}</p>
+              )}
             </div>
 
             <div>
@@ -211,22 +244,35 @@ const AdminJobEdit = () => {
                 id="fee"
                 type="number"
                 value={formData.fee}
-                onChange={(e) => setFormData({ ...formData, fee: Number(e.target.value) })}
+                onChange={(e) => handleFieldChange('fee', Number(e.target.value))}
                 placeholder="0"
+                min="0"
+                max="100000"
+                className={validationErrors.fee ? 'border-red-500' : ''}
               />
+              {validationErrors.fee && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.fee}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                Maximum fee: ₹100,000
+              </p>
             </div>
 
             <div>
-              <Label htmlFor="registrationLink">Official Registration Link</Label>
+              <Label htmlFor="registrationLink">Official Registration Link (HTTPS only)</Label>
               <Input
                 id="registrationLink"
                 type="url"
                 value={formData.registrationLink}
-                onChange={(e) => setFormData({ ...formData, registrationLink: e.target.value })}
+                onChange={(e) => handleFieldChange('registrationLink', e.target.value)}
                 placeholder="https://example.com/register"
+                className={validationErrors.registrationLink ? 'border-red-500' : ''}
               />
+              {validationErrors.registrationLink && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.registrationLink}</p>
+              )}
               <p className="text-xs text-muted-foreground mt-1">
-                Paste the official website link where users can register themselves
+                Paste the official website link where users can register themselves (must use HTTPS)
               </p>
             </div>
 
@@ -237,8 +283,12 @@ const AdminJobEdit = () => {
                   id="applyBy"
                   type="date"
                   value={formData.applyBy}
-                  onChange={(e) => setFormData({ ...formData, applyBy: e.target.value })}
+                  onChange={(e) => handleFieldChange('applyBy', e.target.value)}
+                  className={validationErrors.applyBy ? 'border-red-500' : ''}
                 />
+                {validationErrors.applyBy && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.applyBy}</p>
+                )}
               </div>
 
               <div>
@@ -247,8 +297,12 @@ const AdminJobEdit = () => {
                   id="examDate"
                   type="date"
                   value={formData.examDate}
-                  onChange={(e) => setFormData({ ...formData, examDate: e.target.value })}
+                  onChange={(e) => handleFieldChange('examDate', e.target.value)}
+                  className={validationErrors.examDate ? 'border-red-500' : ''}
                 />
+                {validationErrors.examDate && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.examDate}</p>
+                )}
               </div>
             </div>
 
@@ -262,7 +316,7 @@ const AdminJobEdit = () => {
               <Switch
                 id="published"
                 checked={formData.published}
-                onCheckedChange={(checked) => setFormData({ ...formData, published: checked })}
+                onCheckedChange={(checked) => handleFieldChange('published', checked)}
               />
             </div>
           </CardContent>
@@ -278,6 +332,7 @@ const AdminJobEdit = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => insertTemplate('bullets')}
+                type="button"
               >
                 <List className="w-4 h-4 mr-2" />
                 Bullets
@@ -286,6 +341,7 @@ const AdminJobEdit = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => insertTemplate('numbered')}
+                type="button"
               >
                 <ListOrdered className="w-4 h-4 mr-2" />
                 Steps
@@ -294,6 +350,7 @@ const AdminJobEdit = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => insertTemplate('documents')}
+                type="button"
               >
                 <FileText className="w-4 h-4 mr-2" />
                 Documents
@@ -301,21 +358,27 @@ const AdminJobEdit = () => {
             </div>
 
             <div>
-              <Label htmlFor="description">Description (HTML supported)</Label>
+              <Label htmlFor="description">Description (HTML supported - will be sanitized)</Label>
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) => handleFieldChange('description', e.target.value)}
                 placeholder="Enter job description with HTML formatting..."
-                className="min-h-[300px] font-mono text-sm"
+                className={`min-h-[300px] font-mono text-sm ${validationErrors.description ? 'border-red-500' : ''}`}
               />
+              {validationErrors.description && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.description}</p>
+              )}
+              <p className="text-xs text-muted-foreground mt-1">
+                HTML will be automatically sanitized to remove dangerous scripts. Max 50,000 characters.
+              </p>
             </div>
 
             {formData.description && (
               <div>
-                <Label>Preview</Label>
+                <Label>Preview (After Sanitization)</Label>
                 <div
-                  className="border rounded-lg p-4 prose prose-sm max-w-none"
+                  className="border rounded-lg p-4 prose prose-sm max-w-none bg-surface"
                   dangerouslySetInnerHTML={{ __html: formData.description }}
                 />
               </div>
