@@ -1,6 +1,8 @@
+// src/components/JobCard.tsx
 import { useState, useEffect } from 'react';
-import { Star, MapPin, Calendar } from 'lucide-react';
+import { Star, MapPin, Calendar, Briefcase, FileText } from 'lucide-react';
 import { Button } from './ui/button';
+import { Badge } from './ui/badge';
 import { Job } from '@/types/job';
 import { isJobSaved, toggleSavedJob } from '@/lib/storage';
 import { cn } from '@/lib/utils';
@@ -66,9 +68,11 @@ const JobCard = ({ job, onDetailsClick, onRegisterClick }: JobCardProps) => {
     <div className="bg-card border border-border rounded-xl p-3 shadow-sm">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1">
-          <h3 className="font-semibold text-base text-foreground leading-tight mb-1">
-            {job.title}
-          </h3>
+          <div className="flex items-center gap-2 mb-1">
+            <h3 className="font-semibold text-base text-foreground leading-tight">
+              {job.title}
+            </h3>
+          </div>
           <p className="text-xs text-muted-foreground">{job.short}</p>
         </div>
         <button
@@ -85,7 +89,20 @@ const JobCard = ({ job, onDetailsClick, onRegisterClick }: JobCardProps) => {
         </button>
       </div>
       
-      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3">
+      {/* Badges for sector and contract type */}
+      <div className="flex items-center gap-2 mb-2">
+        <Badge 
+          variant={job.sector === 'government' ? 'default' : 'secondary'}
+          className="text-xs capitalize"
+        >
+          {job.sector}
+        </Badge>
+        <Badge variant="outline" className="text-xs capitalize">
+          {job.contractType}
+        </Badge>
+      </div>
+      
+      <div className="flex items-center gap-3 text-xs text-muted-foreground mb-3 flex-wrap">
         <div className="flex items-center gap-1">
           <MapPin className="w-3 h-3" />
           <span>{job.location}</span>
