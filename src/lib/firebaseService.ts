@@ -57,7 +57,8 @@ export const updateUserProfile = async (uid: string, data: Partial<User>) => {
 };
 
 export const isUserAdmin = (email: string): boolean => {
-  return ADMIN_EMAILS.includes(email.toLowerCase());
+  const normalizedEmail = email.toLowerCase().trim();
+  return ADMIN_EMAILS.includes(normalizedEmail);
 };
 
 export const promoteUserToAdmin = async (userId: string) => {
@@ -322,7 +323,6 @@ export const updateBookingStatus = async (
   }
 };
 
-// NEW FUNCTION: Delete a booking
 export const deleteBooking = async (bookingId: string) => {
   try {
     await deleteDoc(doc(db, 'bookings', bookingId));
