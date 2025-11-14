@@ -209,7 +209,6 @@ const Home = ({ onJobDetailsClick, onRegisterClick }: HomeProps) => {
                   <SelectItem value="permanent">Permanent</SelectItem>
                   <SelectItem value="contract">Contract</SelectItem>
                   <SelectItem value="temporary">Temporary</SelectItem>
-                  <SelectItem value="part-time">Part-time</SelectItem>
                 </SelectContent>
               </Select>
             </div>
