@@ -1,14 +1,23 @@
+// src/types/job.ts
 export interface Job {
   id: string;
   title: string;
   short: string;
   location: string;
+  
+  // NEW FIELDS
+  locationType: 'local' | 'state' | 'national';
+  district?: string; // For local jobs
+  state: string; // State name
+  sector: 'government' | 'private';
+  contractType: 'permanent' | 'contract' | 'temporary' | 'part-time';
+  
   fee?: number;
   published: boolean;
   applyBy: string;
   examDate?: string;
   description: string;
-  registrationLink?: string; // NEW FIELD
+  registrationLink?: string;
   createdAt: Date;
   lastUpdated: Date;
 }
