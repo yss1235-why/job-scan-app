@@ -18,6 +18,7 @@ import { saveUser, getUser, refreshUserFromFirestore, createBooking } from '@/li
 import { getJobs } from '@/lib/storage';
 import { useToast } from '@/hooks/use-toast';
 import { AlertTriangle, ExternalLink, HandHeart } from 'lucide-react';
+import { validateProfileData } from '@/lib/sanitize';
 
 const Index = () => {
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
@@ -36,6 +37,7 @@ const Index = () => {
     state: '',
     email: '',
   });
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -84,6 +86,17 @@ const Index = () => {
       const result = await signInWithPopup(auth, googleProvider);
       const user = result.user;
       
+      // Check if email is verified (security improvement)
+      if (!user.emailVerified && !user.email?.endsWith('@gmail.com')) {
+        toast({
+          title: 'Email not verified',
+          description: 'Please verify your email address first',
+          variant: 'destructive',
+        });
+        await signOut(auth);
+        return;
+      }
+      
       setShowLoginModal(false);
       
       const existingUser = await refreshUserFromFirestore();
@@ -96,6 +109,7 @@ const Index = () => {
           state: '',
           email: user.email || '',
         });
+        setValidationErrors({});
         setShowProfileModal(true);
       } else {
         toast({
@@ -116,25 +130,34 @@ const Index = () => {
   };
 
   const handleProfileComplete = async () => {
-    if (!profileData.name || !profileData.phone || !profileData.district || !profileData.state) {
+    // Validate all fields
+    const validation = validateProfileData(profileData);
+    
+    if (!validation.valid) {
+      setValidationErrors(validation.errors);
       toast({
-        title: 'Incomplete profile',
-        description: 'Please fill in all required fields',
+        title: 'Validation Error',
+        description: 'Please fix the errors in the form',
         variant: 'destructive',
       });
       return;
     }
+    
+    setValidationErrors({});
     
     if (!authUser) return;
 
     try {
       setLoading(true);
       
+      // Determine role based on email
       const role = isUserAdmin(authUser.email) ? 'admin' : 'user';
       
+      // Save user with sanitized data
+      // Note: The role will be validated and set properly by Firestore rules
       await saveUser({
         uid: authUser.uid,
-        ...profileData,
+        ...validation.sanitizedData!,
         role,
       });
       
@@ -148,7 +171,7 @@ const Index = () => {
       console.error('Error completing profile:', error);
       toast({
         title: 'Error',
-        description: 'Failed to save profile. Please try again.',
+        description: error.message || 'Failed to save profile. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -292,7 +315,7 @@ const Index = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Register Modal - UPDATED WITH CLEARER OPTIONS */}
+      {/* Register Modal */}
       <Dialog open={showRegisterModal} onOpenChange={setShowRegisterModal}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -470,39 +493,82 @@ const Index = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Complete Your Profile</DialogTitle>
+            <DialogDescription>
+              Please fill in all required fields with valid information
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div>
               <Label>Name *</Label>
               <Input
                 value={profileData.name}
-                onChange={(e) => setProfileData({ ...profileData, name: e.target.value })}
-                placeholder="Enter your name"
+                onChange={(e) => {
+                  setProfileData({ ...profileData, name: e.target.value });
+                  if (validationErrors.name) {
+                    const { name, ...rest } = validationErrors;
+                    setValidationErrors(rest);
+                  }
+                }}
+                placeholder="Enter your full name"
+                className={validationErrors.name ? 'border-red-500' : ''}
               />
+              {validationErrors.name && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.name}</p>
+              )}
             </div>
             <div>
               <Label>Phone *</Label>
               <Input
                 value={profileData.phone}
-                onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
-                placeholder="Enter your phone"
+                onChange={(e) => {
+                  setProfileData({ ...profileData, phone: e.target.value });
+                  if (validationErrors.phone) {
+                    const { phone, ...rest } = validationErrors;
+                    setValidationErrors(rest);
+                  }
+                }}
+                placeholder="10-digit mobile number"
+                className={validationErrors.phone ? 'border-red-500' : ''}
               />
+              {validationErrors.phone && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.phone}</p>
+              )}
             </div>
             <div>
               <Label>District *</Label>
               <Input
                 value={profileData.district}
-                onChange={(e) => setProfileData({ ...profileData, district: e.target.value })}
+                onChange={(e) => {
+                  setProfileData({ ...profileData, district: e.target.value });
+                  if (validationErrors.district) {
+                    const { district, ...rest } = validationErrors;
+                    setValidationErrors(rest);
+                  }
+                }}
                 placeholder="Enter your district"
+                className={validationErrors.district ? 'border-red-500' : ''}
               />
+              {validationErrors.district && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.district}</p>
+              )}
             </div>
             <div>
               <Label>State *</Label>
               <Input
                 value={profileData.state}
-                onChange={(e) => setProfileData({ ...profileData, state: e.target.value })}
+                onChange={(e) => {
+                  setProfileData({ ...profileData, state: e.target.value });
+                  if (validationErrors.state) {
+                    const { state, ...rest } = validationErrors;
+                    setValidationErrors(rest);
+                  }
+                }}
                 placeholder="Enter your state"
+                className={validationErrors.state ? 'border-red-500' : ''}
               />
+              {validationErrors.state && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.state}</p>
+              )}
             </div>
             <Button 
               onClick={handleProfileComplete} 
