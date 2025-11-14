@@ -1,15 +1,11 @@
+// src/lib/sanitize.ts
 import DOMPurify from 'dompurify';
 
 // ==================== HTML SANITIZATION ====================
 
-/**
- * Sanitizes HTML content to prevent XSS attacks
- * Removes dangerous tags like <script>, <iframe>, event handlers, etc.
- */
 export const sanitizeHTML = (html: string): string => {
   if (!html) return '';
   
-  // Configure DOMPurify to allow safe HTML tags
   const config = {
     ALLOWED_TAGS: [
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
@@ -33,9 +29,6 @@ export const sanitizeHTML = (html: string): string => {
 
 // ==================== INPUT VALIDATION ====================
 
-/**
- * Validates and sanitizes a name (2-100 characters, letters and spaces only)
- */
 export const validateName = (name: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!name || typeof name !== 'string') {
     return { valid: false, error: 'Name is required' };
@@ -51,7 +44,6 @@ export const validateName = (name: string): { valid: boolean; error?: string; sa
     return { valid: false, error: 'Name must be less than 100 characters' };
   }
   
-  // Allow letters, spaces, hyphens, apostrophes (for names like O'Brien)
   const nameRegex = /^[a-zA-Z\s'-]+$/;
   if (!nameRegex.test(trimmed)) {
     return { valid: false, error: 'Name can only contain letters, spaces, hyphens, and apostrophes' };
@@ -60,23 +52,17 @@ export const validateName = (name: string): { valid: boolean; error?: string; sa
   return { valid: true, sanitized: trimmed };
 };
 
-/**
- * Validates Indian phone number (10 digits)
- */
 export const validatePhone = (phone: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!phone || typeof phone !== 'string') {
     return { valid: false, error: 'Phone number is required' };
   }
   
-  // Remove all non-digit characters
   const cleaned = phone.replace(/\D/g, '');
   
-  // Check if it's 10 digits
   if (cleaned.length !== 10) {
     return { valid: false, error: 'Phone number must be exactly 10 digits' };
   }
   
-  // Check if it starts with 6, 7, 8, or 9 (valid Indian mobile numbers)
   if (!/^[6-9]/.test(cleaned)) {
     return { valid: false, error: 'Phone number must start with 6, 7, 8, or 9' };
   }
@@ -84,9 +70,6 @@ export const validatePhone = (phone: string): { valid: boolean; error?: string; 
   return { valid: true, sanitized: cleaned };
 };
 
-/**
- * Validates district/state name
- */
 export const validateLocation = (location: string, fieldName: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!location || typeof location !== 'string') {
     return { valid: false, error: `${fieldName} is required` };
@@ -102,7 +85,6 @@ export const validateLocation = (location: string, fieldName: string): { valid: 
     return { valid: false, error: `${fieldName} must be less than 50 characters` };
   }
   
-  // Allow letters, spaces, hyphens (for names like Tamil Nadu)
   const locationRegex = /^[a-zA-Z\s-]+$/;
   if (!locationRegex.test(trimmed)) {
     return { valid: false, error: `${fieldName} can only contain letters, spaces, and hyphens` };
@@ -111,9 +93,6 @@ export const validateLocation = (location: string, fieldName: string): { valid: 
   return { valid: true, sanitized: trimmed };
 };
 
-/**
- * Validates email format
- */
 export const validateEmail = (email: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!email || typeof email !== 'string') {
     return { valid: false, error: 'Email is required' };
@@ -121,7 +100,6 @@ export const validateEmail = (email: string): { valid: boolean; error?: string; 
   
   const trimmed = email.trim().toLowerCase();
   
-  // Basic email regex
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(trimmed)) {
     return { valid: false, error: 'Invalid email format' };
@@ -136,9 +114,6 @@ export const validateEmail = (email: string): { valid: boolean; error?: string; 
 
 // ==================== JOB DATA VALIDATION ====================
 
-/**
- * Validates job title
- */
 export const validateJobTitle = (title: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!title || typeof title !== 'string') {
     return { valid: false, error: 'Job title is required' };
@@ -157,9 +132,6 @@ export const validateJobTitle = (title: string): { valid: boolean; error?: strin
   return { valid: true, sanitized: trimmed };
 };
 
-/**
- * Validates job fee (must be 0 or positive, max 100,000)
- */
 export const validateFee = (fee: number): { valid: boolean; error?: string; sanitized?: number } => {
   if (typeof fee !== 'number' || isNaN(fee)) {
     return { valid: false, error: 'Fee must be a valid number' };
@@ -173,15 +145,11 @@ export const validateFee = (fee: number): { valid: boolean; error?: string; sani
     return { valid: false, error: 'Fee cannot exceed ₹100,000' };
   }
   
-  // Round to 2 decimal places
   const sanitized = Math.round(fee * 100) / 100;
   
   return { valid: true, sanitized };
 };
 
-/**
- * Validates date is in the future
- */
 export const validateFutureDate = (dateString: string, fieldName: string): { valid: boolean; error?: string } => {
   if (!dateString || typeof dateString !== 'string') {
     return { valid: false, error: `${fieldName} is required` };
@@ -199,7 +167,6 @@ export const validateFutureDate = (dateString: string, fieldName: string): { val
     return { valid: false, error: `${fieldName} must be in the future` };
   }
   
-  // Check if date is not too far in the future (max 5 years)
   const maxDate = new Date();
   maxDate.setFullYear(maxDate.getFullYear() + 5);
   
@@ -210,12 +177,9 @@ export const validateFutureDate = (dateString: string, fieldName: string): { val
   return { valid: true };
 };
 
-/**
- * Validates URL format and ensures it's HTTPS
- */
 export const validateURL = (url: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!url || typeof url !== 'string') {
-    return { valid: true, sanitized: '' }; // URL is optional
+    return { valid: true, sanitized: '' };
   }
   
   const trimmed = url.trim();
@@ -227,7 +191,6 @@ export const validateURL = (url: string): { valid: boolean; error?: string; sani
   try {
     const urlObj = new URL(trimmed);
     
-    // Only allow https:// for security
     if (urlObj.protocol !== 'https:') {
       return { valid: false, error: 'URL must use HTTPS protocol' };
     }
@@ -238,12 +201,9 @@ export const validateURL = (url: string): { valid: boolean; error?: string; sani
   }
 };
 
-/**
- * Validates job short description
- */
 export const validateShortDescription = (short: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!short || typeof short !== 'string') {
-    return { valid: true, sanitized: '' }; // Short description is optional
+    return { valid: true, sanitized: '' };
   }
   
   const trimmed = short.trim();
@@ -255,12 +215,9 @@ export const validateShortDescription = (short: string): { valid: boolean; error
   return { valid: true, sanitized: trimmed };
 };
 
-/**
- * Validates job description (allows HTML but sanitizes it)
- */
 export const validateJobDescription = (description: string): { valid: boolean; error?: string; sanitized?: string } => {
   if (!description || typeof description !== 'string') {
-    return { valid: true, sanitized: '' }; // Description is optional
+    return { valid: true, sanitized: '' };
   }
   
   const trimmed = description.trim();
@@ -269,10 +226,101 @@ export const validateJobDescription = (description: string): { valid: boolean; e
     return { valid: false, error: 'Description is too long (max 50,000 characters)' };
   }
   
-  // Sanitize the HTML
   const sanitized = sanitizeHTML(trimmed);
   
   return { valid: true, sanitized };
+};
+
+// ==================== NEW FIELD VALIDATIONS ====================
+
+export const validateLocationType = (locationType: string): { valid: boolean; error?: string; sanitized?: string } => {
+  const validTypes = ['local', 'state', 'national'];
+  
+  if (!locationType || typeof locationType !== 'string') {
+    return { valid: false, error: 'Location type is required' };
+  }
+  
+  const trimmed = locationType.trim().toLowerCase();
+  
+  if (!validTypes.includes(trimmed)) {
+    return { valid: false, error: 'Location type must be local, state, or national' };
+  }
+  
+  return { valid: true, sanitized: trimmed };
+};
+
+export const validateDistrict = (district: string, locationType: string): { valid: boolean; error?: string; sanitized?: string } => {
+  // District is required only for local jobs
+  if (locationType === 'local') {
+    if (!district || typeof district !== 'string' || district.trim().length === 0) {
+      return { valid: false, error: 'District is required for local jobs' };
+    }
+    
+    const trimmed = district.trim();
+    
+    if (trimmed.length < 2) {
+      return { valid: false, error: 'District name must be at least 2 characters' };
+    }
+    
+    if (trimmed.length > 50) {
+      return { valid: false, error: 'District name must be less than 50 characters' };
+    }
+    
+    return { valid: true, sanitized: trimmed };
+  }
+  
+  // For non-local jobs, district is optional
+  return { valid: true, sanitized: district?.trim() || '' };
+};
+
+export const validateState = (state: string): { valid: boolean; error?: string; sanitized?: string } => {
+  if (!state || typeof state !== 'string') {
+    return { valid: false, error: 'State is required' };
+  }
+  
+  const trimmed = state.trim();
+  
+  if (trimmed.length < 2) {
+    return { valid: false, error: 'State name must be at least 2 characters' };
+  }
+  
+  if (trimmed.length > 50) {
+    return { valid: false, error: 'State name must be less than 50 characters' };
+  }
+  
+  return { valid: true, sanitized: trimmed };
+};
+
+export const validateSector = (sector: string): { valid: boolean; error?: string; sanitized?: string } => {
+  const validSectors = ['government', 'private'];
+  
+  if (!sector || typeof sector !== 'string') {
+    return { valid: false, error: 'Sector is required' };
+  }
+  
+  const trimmed = sector.trim().toLowerCase();
+  
+  if (!validSectors.includes(trimmed)) {
+    return { valid: false, error: 'Sector must be government or private' };
+  }
+  
+  return { valid: true, sanitized: trimmed };
+};
+
+export const validateContractType = (contractType: string): { valid: boolean; error?: string; sanitized?: string } => {
+  const validTypes = ['permanent', 'contract', 'temporary', 'part-time'];
+  
+  if (!contractType || typeof contractType !== 'string') {
+    return { valid: false, error: 'Contract type is required' };
+  }
+  
+  const trimmed = contractType.trim().toLowerCase();
+  
+  if (!validTypes.includes(trimmed)) {
+    return { valid: false, error: 'Contract type must be permanent, contract, temporary, or part-time' };
+  }
+  
+  return { valid: true, sanitized: trimmed };
 };
 
 // ==================== COMPLETE JOB VALIDATION ====================
@@ -284,6 +332,11 @@ export interface JobValidationResult {
     title: string;
     short: string;
     location: string;
+    locationType: 'local' | 'state' | 'national';
+    district?: string;
+    state: string;
+    sector: 'government' | 'private';
+    contractType: 'permanent' | 'contract' | 'temporary' | 'part-time';
     fee: number;
     applyBy: string;
     examDate?: string;
@@ -292,9 +345,6 @@ export interface JobValidationResult {
   };
 }
 
-/**
- * Validates complete job data
- */
 export const validateJobData = (data: any): JobValidationResult => {
   const errors: Record<string, string> = {};
   
@@ -308,6 +358,36 @@ export const validateJobData = (data: any): JobValidationResult => {
   const locationResult = validateLocation(data.location, 'Location');
   if (!locationResult.valid) {
     errors.location = locationResult.error!;
+  }
+  
+  // Validate location type
+  const locationTypeResult = validateLocationType(data.locationType);
+  if (!locationTypeResult.valid) {
+    errors.locationType = locationTypeResult.error!;
+  }
+  
+  // Validate district (required for local jobs)
+  const districtResult = validateDistrict(data.district, data.locationType);
+  if (!districtResult.valid) {
+    errors.district = districtResult.error!;
+  }
+  
+  // Validate state
+  const stateResult = validateState(data.state);
+  if (!stateResult.valid) {
+    errors.state = stateResult.error!;
+  }
+  
+  // Validate sector
+  const sectorResult = validateSector(data.sector);
+  if (!sectorResult.valid) {
+    errors.sector = sectorResult.error!;
+  }
+  
+  // Validate contract type
+  const contractTypeResult = validateContractType(data.contractType);
+  if (!contractTypeResult.valid) {
+    errors.contractType = contractTypeResult.error!;
   }
   
   // Validate fee
@@ -361,6 +441,11 @@ export const validateJobData = (data: any): JobValidationResult => {
       title: titleResult.sanitized!,
       short: shortResult.sanitized || '',
       location: locationResult.sanitized!,
+      locationType: locationTypeResult.sanitized as 'local' | 'state' | 'national',
+      district: districtResult.sanitized || '',
+      state: stateResult.sanitized!,
+      sector: sectorResult.sanitized as 'government' | 'private',
+      contractType: contractTypeResult.sanitized as 'permanent' | 'contract' | 'temporary' | 'part-time',
       fee: feeResult.sanitized!,
       applyBy: data.applyBy,
       examDate: data.examDate || '',
@@ -384,48 +469,38 @@ export interface ProfileValidationResult {
   };
 }
 
-/**
- * Validates complete user profile data
- */
 export const validateProfileData = (data: any): ProfileValidationResult => {
   const errors: Record<string, string> = {};
   
-  // Validate name
   const nameResult = validateName(data.name);
   if (!nameResult.valid) {
     errors.name = nameResult.error!;
   }
   
-  // Validate phone
   const phoneResult = validatePhone(data.phone);
   if (!phoneResult.valid) {
     errors.phone = phoneResult.error!;
   }
   
-  // Validate district
   const districtResult = validateLocation(data.district, 'District');
   if (!districtResult.valid) {
     errors.district = districtResult.error!;
   }
   
-  // Validate state
   const stateResult = validateLocation(data.state, 'State');
   if (!stateResult.valid) {
     errors.state = stateResult.error!;
   }
   
-  // Validate email
   const emailResult = validateEmail(data.email);
   if (!emailResult.valid) {
     errors.email = emailResult.error!;
   }
   
-  // If there are any errors, return invalid
   if (Object.keys(errors).length > 0) {
     return { valid: false, errors };
   }
   
-  // Return sanitized data
   return {
     valid: true,
     errors: {},
