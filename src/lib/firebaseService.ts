@@ -15,16 +15,38 @@ import {
 } from 'firebase/firestore';
 import { db, ADMIN_EMAILS } from './firebase';
 import { Job, User, JobNote } from '@/types/job';
+import { validateJobData, validateProfileData, sanitizeHTML } from './sanitize';
 
 // ==================== USER MANAGEMENT ====================
 
 export const saveUserToFirestore = async (user: User) => {
   try {
-    await setDoc(doc(db, 'users', user.uid), {
-      ...user,
+    // Validate profile data
+    const validation = validateProfileData({
+      name: user.name,
+      phone: user.phone,
+      district: user.district,
+      state: user.state,
+      email: user.email,
+    });
+    
+    if (!validation.valid) {
+      const errorMessages = Object.values(validation.errors).join(', ');
+      throw new Error(`Validation failed: ${errorMessages}`);
+    }
+    
+    // Use sanitized data
+    const sanitizedUser = {
+      uid: user.uid,
+      ...validation.sanitizedData,
+      // Role is intentionally NOT included here for new users
+      // It will be set by Firestore rules to 'user' by default
+      // Only admins can set roles for other users
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-    });
+    };
+    
+    await setDoc(doc(db, 'users', user.uid), sanitizedUser);
   } catch (error) {
     console.error('Error saving user:', error);
     throw error;
@@ -46,8 +68,34 @@ export const getUserFromFirestore = async (uid: string): Promise<User | null> =>
 
 export const updateUserProfile = async (uid: string, data: Partial<User>) => {
   try {
+    // Validate only the fields being updated
+    const fieldsToValidate: any = {};
+    if (data.name) fieldsToValidate.name = data.name;
+    if (data.phone) fieldsToValidate.phone = data.phone;
+    if (data.district) fieldsToValidate.district = data.district;
+    if (data.state) fieldsToValidate.state = data.state;
+    if (data.email) fieldsToValidate.email = data.email;
+    
+    if (Object.keys(fieldsToValidate).length > 0) {
+      const validation = validateProfileData({
+        name: fieldsToValidate.name || 'DefaultName',
+        phone: fieldsToValidate.phone || '9999999999',
+        district: fieldsToValidate.district || 'DefaultDistrict',
+        state: fieldsToValidate.state || 'DefaultState',
+        email: fieldsToValidate.email || 'default@email.com',
+      });
+      
+      if (!validation.valid) {
+        const errorMessages = Object.values(validation.errors).join(', ');
+        throw new Error(`Validation failed: ${errorMessages}`);
+      }
+    }
+    
+    // Remove role from update data - users cannot update their own role
+    const { role, ...updateData } = data;
+    
     await updateDoc(doc(db, 'users', uid), {
-      ...data,
+      ...updateData,
       updatedAt: serverTimestamp(),
     });
   } catch (error) {
@@ -64,7 +112,9 @@ export const isUserAdmin = (email: string): boolean => {
 export const promoteUserToAdmin = async (userId: string) => {
   try {
     const userRef = doc(db, 'users', userId);
-    await setDoc(userRef, { role: 'admin' }, { merge: true });
+    // Only allow role updates through this specific function
+    // This should be called only by authenticated admins
+    await setDoc(userRef, { role: 'admin', updatedAt: serverTimestamp() }, { merge: true });
   } catch (error) {
     console.error('Error promoting user:', error);
     throw error;
@@ -128,8 +178,27 @@ export const getJobById = async (jobId: string): Promise<Job | null> => {
 
 export const saveJobToFirestore = async (job: Job) => {
   try {
+    // Validate and sanitize job data
+    const validation = validateJobData({
+      title: job.title,
+      short: job.short,
+      location: job.location,
+      fee: job.fee,
+      applyBy: job.applyBy,
+      examDate: job.examDate,
+      description: job.description,
+      registrationLink: job.registrationLink,
+    });
+    
+    if (!validation.valid) {
+      const errorMessages = Object.values(validation.errors).join('\n');
+      throw new Error(`Validation failed:\n${errorMessages}`);
+    }
+    
+    // Use sanitized data
     const jobData = {
       ...job,
+      ...validation.sanitizedData,
       createdAt: job.createdAt ? Timestamp.fromDate(job.createdAt) : serverTimestamp(),
       lastUpdated: serverTimestamp(),
     };
@@ -196,9 +265,18 @@ export const isJobSavedByUser = async (uid: string, jobId: string): Promise<bool
 
 export const addJobNote = async (jobId: string, message: string) => {
   try {
+    // Validate message length
+    if (!message || message.trim().length === 0) {
+      throw new Error('Note message cannot be empty');
+    }
+    
+    if (message.length > 500) {
+      throw new Error('Note message is too long (max 500 characters)');
+    }
+    
     const noteRef = doc(collection(db, 'jobs', jobId, 'notes'));
     await setDoc(noteRef, {
-      message,
+      message: message.trim(),
       createdAt: serverTimestamp(),
     });
   } catch (error) {
@@ -261,10 +339,32 @@ export interface Booking {
 
 export const createBooking = async (booking: Omit<Booking, 'id' | 'createdAt'>) => {
   try {
+    // Validate booking data
+    if (!booking.jobId || booking.jobId.trim().length === 0) {
+      throw new Error('Job ID is required');
+    }
+    
+    if (!booking.jobTitle || booking.jobTitle.trim().length < 5) {
+      throw new Error('Job title must be at least 5 characters');
+    }
+    
+    if (!booking.userName || booking.userName.trim().length < 2) {
+      throw new Error('User name must be at least 2 characters');
+    }
+    
+    if (!booking.userEmail || !booking.userEmail.includes('@')) {
+      throw new Error('Valid email is required');
+    }
+    
+    if (typeof booking.fee !== 'number' || booking.fee < 0) {
+      throw new Error('Fee must be a positive number');
+    }
+    
     const bookingRef = doc(collection(db, 'bookings'));
     const bookingData = {
       ...booking,
       id: bookingRef.id,
+      status: 'pending', // Always set to pending for new bookings
       createdAt: serverTimestamp(),
     };
     
@@ -313,6 +413,12 @@ export const updateBookingStatus = async (
   status: Booking['status']
 ) => {
   try {
+    // Validate status
+    const validStatuses = ['pending', 'processing', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      throw new Error('Invalid booking status');
+    }
+    
     await updateDoc(doc(db, 'bookings', bookingId), {
       status,
       updatedAt: serverTimestamp(),
