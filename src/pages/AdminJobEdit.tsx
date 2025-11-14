@@ -7,6 +7,13 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { getUser } from '@/lib/storage';
 import { getJobById, saveJobToFirestore, addJobNote } from '@/lib/firebaseService';
 import { Job } from '@/types/job';
@@ -25,6 +32,11 @@ const AdminJobEdit = () => {
     title: '',
     short: '',
     location: '',
+    locationType: 'state',
+    district: '',
+    state: '',
+    sector: 'government',
+    contractType: 'permanent',
     fee: 0,
     published: false,
     applyBy: '',
@@ -61,6 +73,11 @@ const AdminJobEdit = () => {
           applyBy: job.applyBy?.split('T')[0] || '',
           examDate: job.examDate?.split('T')[0] || '',
           registrationLink: job.registrationLink || '',
+          locationType: job.locationType || 'state',
+          district: job.district || '',
+          state: job.state || '',
+          sector: job.sector || 'government',
+          contractType: job.contractType || 'permanent',
         });
       }
     } catch (error) {
@@ -107,6 +124,11 @@ const AdminJobEdit = () => {
       title: formData.title,
       short: formData.short,
       location: formData.location,
+      locationType: formData.locationType,
+      district: formData.district,
+      state: formData.state,
+      sector: formData.sector,
+      contractType: formData.contractType,
       fee: formData.fee || 0,
       applyBy: formData.applyBy,
       examDate: formData.examDate,
@@ -235,6 +257,95 @@ const AdminJobEdit = () => {
               />
               {validationErrors.location && (
                 <p className="text-xs text-red-500 mt-1">{validationErrors.location}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="locationType">Location Type *</Label>
+              <Select
+                value={formData.locationType}
+                onValueChange={(value) => handleFieldChange('locationType', value)}
+              >
+                <SelectTrigger className={validationErrors.locationType ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select location type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">Local (District Level)</SelectItem>
+                  <SelectItem value="state">State Level</SelectItem>
+                  <SelectItem value="national">National Level</SelectItem>
+                </SelectContent>
+              </Select>
+              {validationErrors.locationType && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.locationType}</p>
+              )}
+            </div>
+
+            {formData.locationType === 'local' && (
+              <div>
+                <Label htmlFor="district">District * (Required for Local Jobs)</Label>
+                <Input
+                  id="district"
+                  value={formData.district}
+                  onChange={(e) => handleFieldChange('district', e.target.value)}
+                  placeholder="e.g., Imphal East"
+                  className={validationErrors.district ? 'border-red-500' : ''}
+                />
+                {validationErrors.district && (
+                  <p className="text-xs text-red-500 mt-1">{validationErrors.district}</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="state">State *</Label>
+              <Input
+                id="state"
+                value={formData.state}
+                onChange={(e) => handleFieldChange('state', e.target.value)}
+                placeholder="e.g., Manipur"
+                className={validationErrors.state ? 'border-red-500' : ''}
+              />
+              {validationErrors.state && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.state}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="sector">Sector *</Label>
+              <Select
+                value={formData.sector}
+                onValueChange={(value) => handleFieldChange('sector', value)}
+              >
+                <SelectTrigger className={validationErrors.sector ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select sector" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="government">Government</SelectItem>
+                  <SelectItem value="private">Private</SelectItem>
+                </SelectContent>
+              </Select>
+              {validationErrors.sector && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.sector}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="contractType">Contract Type *</Label>
+              <Select
+                value={formData.contractType}
+                onValueChange={(value) => handleFieldChange('contractType', value)}
+              >
+                <SelectTrigger className={validationErrors.contractType ? 'border-red-500' : ''}>
+                  <SelectValue placeholder="Select contract type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="permanent">Permanent</SelectItem>
+                  <SelectItem value="contract">Contract</SelectItem>
+                  <SelectItem value="temporary">Temporary/Part-time</SelectItem>
+                </SelectContent>
+              </Select>
+              {validationErrors.contractType && (
+                <p className="text-xs text-red-500 mt-1">{validationErrors.contractType}</p>
               )}
             </div>
 
