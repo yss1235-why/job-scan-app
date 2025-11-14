@@ -249,7 +249,8 @@ export const validateLocationType = (locationType: string): { valid: boolean; er
   return { valid: true, sanitized: trimmed };
 };
 
-export const validateDistrict = (district: string, locationType: string): { valid: boolean; error?: string; sanitized?: string } => {
+// FIXED: Updated to accept undefined and handle non-local jobs better
+export const validateDistrict = (district: string | undefined, locationType: string): { valid: boolean; error?: string; sanitized?: string } => {
   // District is required only for local jobs
   if (locationType === 'local') {
     if (!district || typeof district !== 'string' || district.trim().length === 0) {
@@ -269,8 +270,8 @@ export const validateDistrict = (district: string, locationType: string): { vali
     return { valid: true, sanitized: trimmed };
   }
   
-  // For non-local jobs, district is optional
-  return { valid: true, sanitized: district?.trim() || '' };
+  // For non-local jobs, district is optional and should always be valid
+  return { valid: true, sanitized: '' };
 };
 
 export const validateState = (state: string): { valid: boolean; error?: string; sanitized?: string } => {
@@ -367,8 +368,11 @@ export const validateJobData = (data: any): JobValidationResult => {
     errors.locationType = locationTypeResult.error!;
   }
   
-  // Validate district (required for local jobs)
-  const districtResult = validateDistrict(data.district, data.locationType);
+  // FIXED: Validate district (conditionally pass empty string for non-local jobs)
+  const districtResult = validateDistrict(
+    data.locationType === 'local' ? data.district : '',
+    data.locationType
+  );
   if (!districtResult.valid) {
     errors.district = districtResult.error!;
   }
