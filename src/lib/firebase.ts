@@ -3,22 +3,27 @@ import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
-// Firebase configuration
+// Firebase configuration from environment variables
 const firebaseConfig = {
-  apiKey: "AIzaSyB3KNFDxcvlpj235SxHwMam1b8xhM8l7wM",
-  authDomain: "pi-lottery-901c4.firebaseapp.com",
-  projectId: "pi-lottery-901c4",
-  storageBucket: "pi-lottery-901c4.firebasestorage.app",
-  messagingSenderId: "1028018249150",
-  appId: "1:1028018249150:web:fe6070771c08617635edef",
-  measurementId: "G-6YJRWNRJMN"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Admin emails list - will be moved to Firestore for production
-export const ADMIN_EMAILS = [
-  'yursccc@gmail.com',
-  // Add more admin emails here as needed
-];
+// Get admin emails from environment variable and split into array
+const getAdminEmails = (): string[] => {
+  const adminEmailsString = import.meta.env.ADMIN_EMAILS || '';
+  return adminEmailsString
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(email => email.length > 0);
+};
+
+export const ADMIN_EMAILS = getAdminEmails();
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
