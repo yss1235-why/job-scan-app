@@ -5,12 +5,12 @@ export interface Job {
   short: string;
   location: string;
   
-  // NEW FIELDS
+  // Location fields
   locationType: 'local' | 'state' | 'national';
   district?: string; // For local jobs
   state: string; // State name
   sector: 'government' | 'private';
-  contractType: 'permanent' | 'contract' | 'temporary' | 'part-time';
+  contractType: 'permanent' | 'contract' | 'temporary'; // Removed 'part-time', merged into 'temporary'
   
   fee?: number;
   published: boolean;
