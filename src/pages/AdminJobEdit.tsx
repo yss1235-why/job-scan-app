@@ -119,13 +119,13 @@ const AdminJobEdit = () => {
   };
 
   const handleSave = async () => {
-    // Validate all job data
-    const validation = validateJobData({
+    // FIXED: Prepare data for validation, conditionally including district
+    const jobDataToValidate = {
       title: formData.title,
       short: formData.short,
       location: formData.location,
       locationType: formData.locationType,
-      district: formData.district,
+      district: formData.locationType === 'local' ? (formData.district || '') : '',
       state: formData.state,
       sector: formData.sector,
       contractType: formData.contractType,
@@ -134,7 +134,10 @@ const AdminJobEdit = () => {
       examDate: formData.examDate,
       description: formData.description,
       registrationLink: formData.registrationLink,
-    });
+    };
+
+    // Validate all job data
+    const validation = validateJobData(jobDataToValidate);
 
     if (!validation.valid) {
       setValidationErrors(validation.errors);
@@ -153,7 +156,7 @@ const AdminJobEdit = () => {
       
       const jobData: Job = {
         id: isNew ? `job_${Date.now()}` : jobId!,
-        ...validation.sanitizedData!, // Use sanitized data
+        ...validation.sanitizedData!,
         published: formData.published || false,
         createdAt: isNew ? new Date() : (formData.createdAt || new Date()),
         lastUpdated: new Date(),
