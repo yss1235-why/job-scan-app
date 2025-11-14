@@ -308,7 +308,8 @@ export const validateSector = (sector: string): { valid: boolean; error?: string
 };
 
 export const validateContractType = (contractType: string): { valid: boolean; error?: string; sanitized?: string } => {
-  const validTypes = ['permanent', 'contract', 'temporary', 'part-time'];
+  // Updated to only include 3 types (merged part-time into temporary)
+  const validTypes = ['permanent', 'contract', 'temporary'];
   
   if (!contractType || typeof contractType !== 'string') {
     return { valid: false, error: 'Contract type is required' };
@@ -317,7 +318,7 @@ export const validateContractType = (contractType: string): { valid: boolean; er
   const trimmed = contractType.trim().toLowerCase();
   
   if (!validTypes.includes(trimmed)) {
-    return { valid: false, error: 'Contract type must be permanent, contract, temporary, or part-time' };
+    return { valid: false, error: 'Contract type must be permanent, contract, or temporary' };
   }
   
   return { valid: true, sanitized: trimmed };
@@ -336,7 +337,7 @@ export interface JobValidationResult {
     district?: string;
     state: string;
     sector: 'government' | 'private';
-    contractType: 'permanent' | 'contract' | 'temporary' | 'part-time';
+    contractType: 'permanent' | 'contract' | 'temporary';
     fee: number;
     applyBy: string;
     examDate?: string;
@@ -445,7 +446,7 @@ export const validateJobData = (data: any): JobValidationResult => {
       district: districtResult.sanitized || '',
       state: stateResult.sanitized!,
       sector: sectorResult.sanitized as 'government' | 'private',
-      contractType: contractTypeResult.sanitized as 'permanent' | 'contract' | 'temporary' | 'part-time',
+      contractType: contractTypeResult.sanitized as 'permanent' | 'contract' | 'temporary',
       fee: feeResult.sanitized!,
       applyBy: data.applyBy,
       examDate: data.examDate || '',
