@@ -178,11 +178,16 @@ export const getJobById = async (jobId: string): Promise<Job | null> => {
 
 export const saveJobToFirestore = async (job: Job) => {
   try {
-    // Validate and sanitize job data
+    // Validate and sanitize job data - NOW INCLUDING ALL NEW FIELDS
     const validation = validateJobData({
       title: job.title,
       short: job.short,
       location: job.location,
+      locationType: job.locationType,  // ✅ ADDED
+      district: job.district,           // ✅ ADDED
+      state: job.state,                 // ✅ ADDED
+      sector: job.sector,               // ✅ ADDED
+      contractType: job.contractType,   // ✅ ADDED
       fee: job.fee,
       applyBy: job.applyBy,
       examDate: job.examDate,
