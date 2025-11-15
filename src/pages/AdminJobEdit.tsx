@@ -19,6 +19,8 @@ import { getJobById, saveJobToFirestore, addJobNote } from '@/lib/firebaseServic
 import { Job } from '@/types/job';
 import { useToast } from '@/hooks/use-toast';
 import { validateJobData } from '@/lib/sanitize';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
 
 const AdminJobEdit = () => {
   const { jobId } = useParams();
@@ -111,7 +113,6 @@ const AdminJobEdit = () => {
       [field]: value,
     });
     
-    // Clear validation error for this field when user types
     if (validationErrors[field]) {
       const { [field]: _, ...rest } = validationErrors;
       setValidationErrors(rest);
@@ -119,7 +120,97 @@ const AdminJobEdit = () => {
   };
 
   const handleSave = async () => {
-    // FIXED: Prepare data for validation, conditionally including district
+    // === CRITICAL DEBUG CODE START ===
+    console.log('=== STARTING JOB SAVE DEBUG ===');
+    console.log('Timestamp:', new Date().toISOString());
+    
+    // 1. Check authentication
+    console.log('Auth Current User:', auth.currentUser);
+    console.log('User Email:', auth.currentUser?.email);
+    console.log('User UID:', auth.currentUser?.uid);
+    console.log('Is Authenticated?', auth.currentUser !== null);
+    
+    // 2. Check user document in Firestore
+    if (auth.currentUser) {
+      try {
+        const userDocRef = doc(db, 'users', auth.currentUser.uid);
+        console.log('Fetching user document from path:', `users/${auth.currentUser.uid}`);
+        
+        const userDoc = await getDoc(userDocRef);
+        console.log('User Doc Exists?', userDoc.exists());
+        
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('User Doc Full Data:', userData);
+          console.log('User Role:', userData?.role);
+          console.log('User Name:', userData?.name);
+          console.log('User Email:', userData?.email);
+          
+          if (userData?.role !== 'admin') {
+            console.error('❌ USER IS NOT ADMIN! Role is:', userData?.role);
+            toast({
+              title: 'Access Denied',
+              description: `Your role is "${userData?.role}", but admin role is required`,
+              variant: 'destructive',
+            });
+            return;
+          } else {
+            console.log('✅ User has admin role');
+          }
+        } else {
+          console.error('❌ User document does not exist!');
+          toast({
+            title: 'Error',
+            description: 'User profile not found. Please complete your profile first.',
+            variant: 'destructive',
+          });
+          return;
+        }
+      } catch (error) {
+        console.error('❌ Error reading user document:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to verify admin status',
+          variant: 'destructive',
+        });
+        return;
+      }
+    } else {
+      console.error('❌ No authenticated user!');
+      toast({
+        title: 'Error',
+        description: 'You must be signed in',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // 3. Log the exact form data
+    console.log('Form Data:', {
+      title: formData.title,
+      short: formData.short,
+      location: formData.location,
+      locationType: formData.locationType,
+      district: formData.district,
+      state: formData.state,
+      sector: formData.sector,
+      contractType: formData.contractType,
+      fee: formData.fee,
+      applyBy: formData.applyBy,
+      examDate: formData.examDate,
+      published: formData.published,
+      registrationLink: formData.registrationLink,
+      descriptionLength: formData.description?.length,
+    });
+    
+    console.log('Apply By Date:', formData.applyBy);
+    console.log('Apply By Type:', typeof formData.applyBy);
+    console.log('Exam Date:', formData.examDate);
+    console.log('Exam Date Type:', typeof formData.examDate);
+    
+    // === CRITICAL DEBUG CODE END ===
+
+    // Prepare data for validation
     const jobDataToValidate = {
       title: formData.title,
       short: formData.short,
@@ -136,10 +227,15 @@ const AdminJobEdit = () => {
       registrationLink: formData.registrationLink,
     };
 
+    console.log('Data being validated:', jobDataToValidate);
+
     // Validate all job data
     const validation = validateJobData(jobDataToValidate);
 
+    console.log('Validation result:', validation);
+
     if (!validation.valid) {
+      console.error('❌ Validation failed:', validation.errors);
       setValidationErrors(validation.errors);
       toast({
         title: 'Validation Error',
@@ -149,6 +245,7 @@ const AdminJobEdit = () => {
       return;
     }
 
+    console.log('✅ Validation passed');
     setValidationErrors({});
 
     try {
@@ -162,11 +259,19 @@ const AdminJobEdit = () => {
         lastUpdated: new Date(),
       };
 
+      console.log('Final job data to be saved:', jobData);
+      console.log('Job ID:', jobData.id);
+      console.log('Is new job?', isNew);
+
+      console.log('Calling saveJobToFirestore...');
       await saveJobToFirestore(jobData);
+      console.log('✅ Job saved successfully!');
 
       // Add note for existing jobs
       if (!isNew) {
+        console.log('Adding job note...');
         await addJobNote(jobData.id, `Job details updated: ${jobData.title}`);
+        console.log('✅ Note added successfully!');
       }
 
       toast({
@@ -176,7 +281,12 @@ const AdminJobEdit = () => {
 
       navigate('/admin');
     } catch (error: any) {
-      console.error('Error saving job:', error);
+      console.error('❌ Error saving job:', error);
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Full error object:', error);
+      
       toast({
         title: 'Error',
         description: error.message || 'Failed to save job',
